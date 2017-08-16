@@ -1,3 +1,4 @@
+from __future__ import print_function
 from distutils.cmd import Command
 from distutils.command.build_ext import build_ext
 from distutils.errors import (CCompilerError, DistutilsExecError,
@@ -147,18 +148,18 @@ def try_building_extension():
     try:
         run_setup(True)
     except BuildFailed:
-        print '=' * 74
-        print 'WARNING: The C extension could not be compiled,',
-        print 'speedups are not enabled.'
-        print 'Failure information, if any, is above.'
-        print 'Retrying the build without the C extension now.'
-        print
+        print('=' * 74)
+        print('WARNING: The C extension could not be compiled,', end=' ')
+        print('speedups are not enabled.')
+        print('Failure information, if any, is above.')
+        print('Retrying the build without the C extension now.')
+        print()
         run_setup(False)
-        print '=' * 74
-        print 'WARNING: The C extension could not be compiled,',
-        print 'speedups are not enabled.'
-        print 'Plain-Python installation succeeded.'
-        print '=' * 74
+        print('=' * 74)
+        print('WARNING: The C extension could not be compiled,', end=' ')
+        print('speedups are not enabled.')
+        print('Plain-Python installation succeeded.')
+        print('=' * 74)
 
 
 #try_building_extension()

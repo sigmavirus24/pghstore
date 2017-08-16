@@ -3,11 +3,7 @@ import re
 
 import six
 
-
-try:
-    import cStringIO as StringIO
-except ImportError:
-    import StringIO
+import io
 
 
 def dumps(obj, key_map=None, value_map=None, encoding='utf-8',
@@ -87,7 +83,7 @@ def dumps(obj, key_map=None, value_map=None, encoding='utf-8',
     :rtype: :class:`six.string_types`
 
     """
-    b = StringIO.StringIO()
+    b = io.BytesIO()
     dump(obj, b, key_map=key_map, value_map=value_map, encoding=encoding)
     result = b.getvalue()
     if return_unicode:
@@ -132,8 +128,8 @@ def dump(obj, file, key_map=None, value_map=None, encoding='utf-8'):
 
     .. sourcecode:: pycon
 
-       >>> import StringIO
-       >>> f = StringIO.StringIO()
+       >>> import io
+       >>> f = io.BytesIO()
        >>> dump({u'a': u'1'}, f)
        >>> f.getvalue()
        '"a"=>"1"'
@@ -168,7 +164,7 @@ def dump(obj, file, key_map=None, value_map=None, encoding='utf-8'):
     for key, value in items:
         if not isinstance(key, six.string_types):
             key = key_map(key)
-        elif not isinstance(key, six.text_type):
+        elif not isinstance(key, six.binary_type):
             key = key.encode(encoding)
         if value is None:
             value = None
@@ -177,7 +173,7 @@ def dump(obj, file, key_map=None, value_map=None, encoding='utf-8'):
                 raise TypeError('value %r of key %r is not a string' %
                                 (value, key))
             value = value_map(value)
-        elif not isinstance(value, str):
+        elif not isinstance(value, six.binary_type):
             value = value.encode(encoding)
         if first:
             write('"')
