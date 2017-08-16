@@ -6,3 +6,4 @@ pghstore/_speedups.so
 *.egg-info/
 *.pyc
 .*.swp
+.cache/
