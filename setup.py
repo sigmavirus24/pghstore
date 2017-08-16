@@ -20,10 +20,7 @@ try:
 except IOError:
     long_description = None
 
-if sys.version_info < (2, 6):
-    tests_require = ['simplejson']
-else:
-    tests_require = None
+tests_require = None
 
 
 class upload_doc(Command):
@@ -121,6 +118,7 @@ def run_setup(with_speedups):
         maintainer_email='robert' '@' 'kajic.com',
         url='https://github.com/dahlia/pghstore',
         test_suite='pghstoretests.tests',
+        install_requires=['six'],
         tests_require=tests_require,
         platforms=['any'],
         cmdclass={
@@ -163,5 +161,6 @@ def try_building_extension():
         print '=' * 74
 
 
-try_building_extension()
+#try_building_extension()
 
+run_setup(False)

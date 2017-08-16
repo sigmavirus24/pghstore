@@ -29,6 +29,8 @@ You can easily install the package from PyPI_ by using :program:`pip` or
 from __future__ import absolute_import
 
 from .version import VERSION
+
+
 try:
     from ._speedups import dumps, loads
 except ImportError:
@@ -43,7 +45,7 @@ else:
 __all__ = '__version__', 'dump', 'dumps', 'load', 'loads'
 
 
-#: (:class:`basestring`) The version string e.g. ``'0.9.2'``.
+#: (:class:`six.string_types`) The version string e.g. ``'0.9.2'``.
 #:
 #: .. deprecated:: 1.0.0
 #:    Use :mod:`pghstore.version` module instead.
