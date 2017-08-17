@@ -2,6 +2,17 @@
 #include <stdio.h>
 #include <string.h>
 
+struct module_state {
+    PyObject *error;
+};
+
+#if PY_MAJOR_VERSION >= 3
+#define GETSTATE(m) ((struct module_state*)PyModule_GetState(m))
+#else
+#define GETSTATE(m) (&_state)
+static struct module_state _state;
+#endif
+
 #define CHAR_CHECK(s, pos, c)                        \
   if (s[pos] != char) {                              \
     PyErr_Format(PyExc_ValueError,                   \
@@ -12,7 +23,7 @@
 
 #define isEven(a) (((a) & 1) == 0)
 
-#define ConcatOrGotoCleanup(result, string) { PyString_Concat(&result, string); if (!result) { goto _speedup_dumps_cleanup_and_exit; } }
+#define ConcatOrGotoCleanup(result, string) { PyBytes_Concat(&result, string); if (!result) { goto _speedup_dumps_cleanup_and_exit; } }
 
 /*
  * Just like strchr, but find first -unescaped- occurrence of c in s.
@@ -80,13 +91,13 @@ _speedups_loads(PyObject *self, PyObject *args, PyObject *keywds)
       break;
     }
      
-    encoded_key = PyString_FromStringAndSize(p[0], p[1]-p[0]);
+    encoded_key = PyBytes_FromStringAndSize(p[0], p[1]-p[0]);
     key = PyUnicode_FromEncodedObject(encoded_key, encoding, errors);
     Py_DECREF(encoded_key);
     if (null_value == 0) {
       // find and null terminate end of value
       p[3] = strchr_unescaped(p[2], '"');
-      encoded_value = PyString_FromStringAndSize(p[2], p[3] - p[2]);
+      encoded_value = PyBytes_FromStringAndSize(p[2], p[3] - p[2]);
       value = PyUnicode_FromEncodedObject(encoded_value, encoding, errors);
       Py_DECREF(encoded_value);
     } else {
@@ -138,19 +149,19 @@ _speedups_dumps(PyObject *self, PyObject *args, PyObject *keywds)
   }
 
   // return empty string if we got an empty dict
-  empty = PyString_FromString(EMPTY);
+  empty = PyBytes_FromString(EMPTY);
   list_len = PyDict_Size(obj)*8-1;
   if (list_len == -1) {
     return empty;
   }
   
   // create string constants
-  comma = PyString_FromString(COMMA);
-  arrow = PyString_FromString(ARROW);
-  s_null = PyString_FromString(S_NULL);
-  citation = PyString_FromString(CITATION);
+  comma = PyBytes_FromString(COMMA);
+  arrow = PyBytes_FromString(ARROW);
+  s_null = PyBytes_FromString(S_NULL);
+  citation = PyBytes_FromString(CITATION);
   
-  result = PyString_FromString(EMPTY);
+  result = PyBytes_FromString(EMPTY);
   //list = PyList_New(list_len);
 
   while (PyDict_Next(obj, &pos, &unencoded_key, &unencoded_value)) {
@@ -239,21 +250,62 @@ static PyMethodDef CPgHstoreMethods[] = {
     {NULL, NULL, 0, NULL}        /* Sentinel */
 };
 
+#if PY_MAJOR_VERSION >= 3
+static int pghstore_speedups_traverse(PyObject *m, visitproc visit, void *arg) {
+    Py_VISIT(GETSTATE(m)->error);
+    return 0;
+}
+
+static int pghstore_speedups_clear(PyObject *m) {
+    Py_CLEAR(GETSTATE(m)->error);
+    return 0;
+}
+
+static struct PyModuleDef moduledef = {
+    PyModuleDef_HEAD_INIT,
+    "pghstore._speedups",
+    NULL,
+    sizeof(struct module_state),
+    CPgHstoreMethods,
+    NULL,
+    pghstore_speedups_traverse,
+    pghstore_speedups_clear,
+    NULL
+};
+#endif
+
 PyMODINIT_FUNC
 init_speedups(void)
 {
-    PyObject *m;
+    PyObject *module;
 
-    m = Py_InitModule("pghstore._speedups", CPgHstoreMethods);
-    if (m == NULL)
+#if PY_MAJOR_VERSION >= 3
+    module = PyModule_Create(&moduledef);
+    if (module == NULL) {
+        return NULL;
+    }
+#else
+    module = Py_InitModule("pghstore._speedups", CPgHstoreMethods);
+    if (module == NULL) {
         return;
+    }
+#endif
+
+#if PY_MAJOR_VERSION >= 3
+    return module;
+#endif
 }
 
 int
 main(int argc, char *argv[])
 {
-    /* Pass argv[0] to the Python interpreter */
+#if PY_MAJOR_VERSION >= 3
+    wchar_t *program = Py_DecodeLocale(argv[0], NULL);
+    /* Pass program name to the Python interpreter */
+    Py_SetProgramName(program);
+#else
     Py_SetProgramName(argv[0]);
+#endif
 
     /* Initialize the Python interpreter.  Required. */
     Py_Initialize();
