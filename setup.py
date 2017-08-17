@@ -162,6 +162,4 @@ def try_building_extension():
         print('=' * 74)
 
 
-#try_building_extension()
-
-run_setup(False)
+try_building_extension()

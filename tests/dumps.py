@@ -12,10 +12,6 @@ class DumpsTests(unittest.TestCase):
         pairs = [u'"%s"=>%s' % (key, (u'"%s"' % value if value is not None else u"NULL"))\
                      for key, value in six.iteritems(d)]
         for pair in pairs:
-            try:
-                pair in s
-            except UnicodeDecodeError:
-                import pdb; pdb.set_trace()
             self.assertTrue(pair in s)
         self.assertEqual(len(",".join(pairs)), len(s))
 
