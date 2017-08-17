@@ -8,9 +8,6 @@ struct module_state {
 
 #if PY_MAJOR_VERSION >= 3
 #define GETSTATE(m) ((struct module_state*)PyModule_GetState(m))
-#else
-#define GETSTATE(m) (&_state)
-static struct module_state _state;
 #endif
 
 #define CHAR_CHECK(s, pos, c)                        \
@@ -46,7 +43,7 @@ strchr_unescaped(char *s, char c)
 static PyObject *
 _speedups_loads(PyObject *self, PyObject *args, PyObject *keywds)
 {
-  static char *keyword_argument_names[] = {"encoding", "return_type", NULL};
+  static char *keyword_argument_names[] = {"string", "encoding", "return_type", NULL};
   const char *errors = "strict";
   char *encoding = "utf-8";
   char *s;
@@ -55,11 +52,11 @@ _speedups_loads(PyObject *self, PyObject *args, PyObject *keywds)
   PyTypeObject *return_type = &PyDict_Type;
   PyObject *return_value, *encoded_key, *encoded_value, *key, *value;
 
-  if (!PyArg_ParseTupleAndKeywords(args, keywds, "s|sO:set_callback", keyword_argument_names, &s, &encoding, &return_type)) {
+  if (!PyArg_ParseTupleAndKeywords(args, keywds, "s|sO", keyword_argument_names, &s, &encoding, &return_type)) {
     return NULL;
   }
 
-  return_value = PyType_GenericNew(return_type, PyTuple_New(0), PyDict_New());
+  return_value = PyType_GenericNew(return_type, NULL, NULL);
   
   // Each iteration will find one key/value pair
   while ((p[0] = strchr(s, '"')) != NULL) {
@@ -104,11 +101,13 @@ _speedups_loads(PyObject *self, PyObject *args, PyObject *keywds)
       Py_INCREF(Py_None);
       value = Py_None;
     }
+
     if (PyDict_Check(return_value)) {
       PyDict_SetItem(return_value, key, value);
     } else {
       PyList_Append(return_value, PyTuple_Pack(2, key, value));
     }
+
     Py_DECREF(key);
     Py_DECREF(value);
     
