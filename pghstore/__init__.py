@@ -6,13 +6,14 @@ one of PostgreSQL_ supplied modules, that stores simple key-value pairs.
 
 .. sourcecode:: pycon
 
-   >>> dumps({u'a': u'1'})
-   '"a"=>"1"'
-   >>> loads('"a"=>"1"')
-   {u'a': u'1'}
+   >>> simple_dictionary = {u'a': u'1'}
+   >>> dumps(simple_dictionary) == b'"a"=>"1"'
+   True
+   >>> loads('"a"=>"1"') == simple_dictionary
+   True
    >>> src = [('pgsql', 'mysql'), ('python', 'php'), ('gevent', 'nodejs')]
-   >>> loads(dumps(src), return_type=list)
-   [(u'pgsql', u'mysql'), (u'python', u'php'), (u'gevent', u'nodejs')]
+   >>> loads(dumps(src), return_type=list) == src
+   True
 
 You can easily install the package from PyPI_ by using :program:`pip` or
 :program:`easy_install`:

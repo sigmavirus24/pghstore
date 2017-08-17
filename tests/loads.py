@@ -25,7 +25,7 @@ class LoadsTests(unittest.TestCase):
     def test_utf8(self):
         self.maxDiff = None
         #self.assertEqual(pghstore.loads('"åäö" => "åäö"'), {"åäö": "åäö"})
-        s = b'"name"=>"Noorwe\xc3\xab", "name2"=>"öäå"'
+        s = u'"name"=>"Noorwe\xeb", "name2"=>"öäå"'
         self.assertEqual(pghstore.loads(s),
                          {"name": b"Noorwe\xc3\xab".decode('utf-8'),
                           "name2": u"öäå"})

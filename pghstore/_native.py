@@ -176,17 +176,17 @@ def dump(obj, file, key_map=None, value_map=None, encoding='utf-8'):
         elif not isinstance(value, six.binary_type):
             value = value.encode(encoding)
         if first:
-            write('"')
+            write(b'"')
             first = False
         else:
-            write(',"')
+            write(b',"')
         write(escape(key))
         if value is None:
-            write('"=>NULL')
+            write(b'"=>NULL')
         else:
-            write('"=>"')
+            write(b'"=>"')
             write(escape(value))
-            write('"')
+            write(b'"')
 
 
 def load(file, encoding='utf-8'):
@@ -235,6 +235,8 @@ def parse(string, encoding='utf-8'):
        [(u'a=>1', u'"b"=>2')]
 
     """
+    if isinstance(string, six.binary_type):
+        string = string.decode(encoding)
     offset = 0
     for match in PAIR_RE.finditer(string):
         if offset > match.start() or string[offset:match.start()].strip():
@@ -286,5 +288,5 @@ def escape(s):
        >>> escape('string with "quotes"')
        'string with \\"quotes\\"'
     """
-    return s.replace('\\', '\\\\').replace('"', '\\"')
+    return s.replace(b'\\', b'\\\\').replace(b'"', b'\\"')
 
