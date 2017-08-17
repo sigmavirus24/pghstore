@@ -159,13 +159,11 @@ _speedups_dumps(PyObject *self, PyObject *args, PyObject *keywds)
       // Py_INCREF(comma);
       // PyList_SetItem(list, i, comma); i++;
       ConcatOrGotoCleanup(result, comma);
-      printf("Concatenated a comma\n");
     }
     // add key
     // Py_INCREF(citation);
     // PyList_SetItem(list, i, citation); i++;
     ConcatOrGotoCleanup(result, citation);
-    printf("Concatenated a dquote\n");
     if (PyUnicode_Check(unencoded_key)) {
         key = PyUnicode_AsEncodedString(unencoded_key, encoding, errors);
     } else {
@@ -186,16 +184,12 @@ _speedups_dumps(PyObject *self, PyObject *args, PyObject *keywds)
     // PyList_SetItem(list, i, PyObject_Str(key)); i++;
     // Py_INCREF(citation);
     // PyList_SetItem(list, i, citation); i++;
-    printf("Concatenating the key\n");
     ConcatOrGotoCleanup(result, key);
-    printf("Concatenated the key\n");
     ConcatOrGotoCleanup(result, citation);
-    printf("Concatenated a dquote\n");
     // add arrow (=>)
     // Py_INCREF(arrow);
     // PyList_SetItem(list, i, arrow); i++;
     ConcatOrGotoCleanup(result, arrow);
-    printf("Concatenated the hashrocket\n");
     // add value or null
     if (value != Py_None) {
       // add value
@@ -207,7 +201,6 @@ _speedups_dumps(PyObject *self, PyObject *args, PyObject *keywds)
       ConcatOrGotoCleanup(result, citation);
       ConcatOrGotoCleanup(result, PyObject_Str(value));
       ConcatOrGotoCleanup(result, citation);
-      printf("Concatenated the dquoted value\n");
     } else {
       // add null
       // Py_INCREF(empty);
@@ -219,7 +212,6 @@ _speedups_dumps(PyObject *self, PyObject *args, PyObject *keywds)
       ConcatOrGotoCleanup(result, empty);
       ConcatOrGotoCleanup(result, s_null);
       ConcatOrGotoCleanup(result, empty);
-      printf("Concatenated NULL\n");
     }
     i++;
   }
