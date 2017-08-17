@@ -198,7 +198,7 @@ def load(file, encoding='utf-8'):
     if not callable(read):
         raise TypeError('file must be a readable file object that implements '
                         'read() method')
-    return load(read(), encoding=encoding)
+    return loads(read(), encoding=encoding)
 
 
 #: The pattern of pairs.  It captures following four groups:
