@@ -56,7 +56,7 @@ _speedups_loads(PyObject *self, PyObject *args, PyObject *keywds)
     return NULL;
   }
 
-  return_value = PyType_GenericNew(return_type, NULL, NULL);
+  return_value = PyObject_CallObject((PyObject *) return_type, NULL);
   
   // Each iteration will find one key/value pair
   while ((p[0] = strchr(s, '"')) != NULL) {
