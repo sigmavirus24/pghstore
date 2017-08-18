@@ -50,7 +50,7 @@ _speedups_loads(PyObject *self, PyObject *args, PyObject *keywds)
   int i, null_value = 0;
   char *p[4];
   PyTypeObject *return_type = &PyDict_Type;
-  PyObject *return_value, *encoded_key, *encoded_value, *key, *value;
+  PyObject *return_value, *key, *value;
 
   if (!PyArg_ParseTupleAndKeywords(args, keywds, "s|sO", keyword_argument_names, &s, &encoding, &return_type)) {
     return NULL;
@@ -88,15 +88,11 @@ _speedups_loads(PyObject *self, PyObject *args, PyObject *keywds)
       break;
     }
      
-    encoded_key = PyBytes_FromStringAndSize(p[0], p[1]-p[0]);
-    key = PyUnicode_FromEncodedObject(encoded_key, encoding, errors);
-    Py_DECREF(encoded_key);
+    key = PyUnicode_Decode(p[0], p[1]-p[0], encoding, errors);
     if (null_value == 0) {
       // find and null terminate end of value
       p[3] = strchr_unescaped(p[2], '"');
-      encoded_value = PyBytes_FromStringAndSize(p[2], p[3] - p[2]);
-      value = PyUnicode_FromEncodedObject(encoded_value, encoding, errors);
-      Py_DECREF(encoded_value);
+      value = PyUnicode_Decode(p[2], p[3] - p[2], encoding, errors);
     } else {
       Py_INCREF(Py_None);
       value = Py_None;
@@ -153,14 +149,22 @@ _speedups_dumps(PyObject *self, PyObject *args, PyObject *keywds)
     return NULL;
   }
 
+  if (PyCallable_Check(key_map_callback)) {
+      Py_INCREF(key_map_callback);
+  }
+
+  if (PyCallable_Check(value_map_callback)) {
+      Py_INCREF(value_map_callback);
+  }
+
   // return empty string if we got an empty dict
   empty = PyBytes_FromString(EMPTY);
 
   if (PyDict_Check(obj)) {
       list = PyDict_Items(obj);
-      Py_DECREF(obj);
   } else {
       list = obj;
+      Py_INCREF(obj);
   }
 
   list_len = PyObject_Length(list);
@@ -212,20 +216,19 @@ _speedups_dumps(PyObject *self, PyObject *args, PyObject *keywds)
         Py_INCREF(unencoded_value);
     }
 
-    if (!PyBytes_Check(value)) {
-        exception_string = PyUnicode_FromString("value %r of %r is not a string");
-        exception_string_format_args = PyTuple_Pack(2, value, key);
-        PyErr_SetObject(PyExc_TypeError, PyUnicode_Format(exception_string, exception_string_format_args));
-        Py_CLEAR(result);
-        goto _speedup_dumps_cleanup_and_exit;
-    }
-
     ConcatOrGotoCleanup(result, key);
     ConcatOrGotoCleanup(result, citation);
     // add arrow (=>)
     ConcatOrGotoCleanup(result, arrow);
     // add value or null
     if (value != Py_None) {
+      if (!PyBytes_Check(value)) {
+          exception_string = PyUnicode_FromString("value %r of %r is not a string");
+          exception_string_format_args = PyTuple_Pack(2, value, key);
+          PyErr_SetObject(PyExc_TypeError, PyUnicode_Format(exception_string, exception_string_format_args));
+          Py_CLEAR(result);
+          goto _speedup_dumps_cleanup_and_exit;
+      }
       // add value
       ConcatOrGotoCleanup(result, citation);
       ConcatOrGotoCleanup(result, PyObject_Bytes(value));
@@ -239,9 +242,7 @@ _speedups_dumps(PyObject *self, PyObject *args, PyObject *keywds)
     }
     Py_DECREF(item);
     Py_DECREF(key);
-    Py_DECREF(unencoded_key);
     Py_DECREF(value);
-    Py_DECREF(unencoded_value);
     i++;
   }
 _speedup_dumps_cleanup_and_exit:
@@ -250,8 +251,10 @@ _speedup_dumps_cleanup_and_exit:
   Py_DECREF(arrow);
   Py_DECREF(s_null);
   Py_DECREF(citation);
-  Py_DECREF(list);
   Py_DECREF(iter);
+  Py_DECREF(list);
+  Py_XDECREF(value_map_callback);
+  Py_XDECREF(key_map_callback);
 
   if (return_unicode == Py_True) {
       result = PyUnicode_FromEncodedObject(result, encoding, errors);
@@ -262,9 +265,9 @@ _speedup_dumps_cleanup_and_exit:
 
 static PyMethodDef CPgHstoreMethods[] = {
     {"loads",  (PyCFunction)_speedups_loads, METH_VARARGS | METH_KEYWORDS,
-     "Parse (decode) a postgres hstore string into a dict."},
+     "Parse (decode) a postgres hstore string into an object."},
     {"dumps",  (PyCFunction)_speedups_dumps, METH_VARARGS | METH_KEYWORDS,
-     "Dump (encode) a dict into a postgres hstore string."},
+     "Dump (encode) a object into a postgres hstore string."},
     {NULL, NULL, 0, NULL}        /* Sentinel */
 };
 
@@ -290,10 +293,13 @@ static struct PyModuleDef moduledef = {
     pghstore_speedups_clear,
     NULL
 };
-#endif
 
 PyMODINIT_FUNC
+PyInit_speedups(void)
+#else
+void
 init_speedups(void)
+#endif
 {
     PyObject *module;
 
