@@ -24,7 +24,7 @@ class LoadsTests(unittest.TestCase):
 
     def test_escaped_double_quote(self):
         self.assertEqual(
-            self.pghstore.loads('"k\\"ey" => "va\\"lue"'), {'k"ey': 'va"lue'})
+            self.pghstore.loads(r'"k\"ey" => "va\"lue"'), {'k"ey': 'va"lue'})
 
     def test_null(self):
         self.assertEqual(self.pghstore.loads('"key" => null'), {"key": None})

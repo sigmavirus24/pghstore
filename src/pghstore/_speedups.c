@@ -40,6 +40,25 @@ strchr_unescaped(char *s, char c)
   return NULL;
 }
 
+/* Written to match pghstore._native.unescape but slightly smarter. */
+char *
+unescape(char *start_of_string, char *end_of_string)
+{
+  ssize_t copy_index = 0;
+  ssize_t string_length = (end_of_string - start_of_string) + 1;
+  char *unescaped_string = malloc(string_length);
+  memset(unescaped_string, 0, string_length);
+
+  for (ssize_t index = 0; index < (string_length - 1); index++) {
+      if (start_of_string[index] == '\\' && start_of_string[index + 1] != '\\') {
+          continue;
+      }
+      unescaped_string[copy_index++] = start_of_string[index];
+  }
+
+  return unescaped_string;
+}
+
 static PyObject *
 _speedups_loads(PyObject *self, PyObject *args, PyObject *keywds)
 {
@@ -48,7 +67,8 @@ _speedups_loads(PyObject *self, PyObject *args, PyObject *keywds)
   char *encoding = "utf-8";
   char *s;
   int i, null_value = 0;
-  char *p[4];
+  char *unescaped_key, *unescaped_value;
+  char *key_start, *key_end, *value_start, *value_end;
   PyTypeObject *return_type = &PyDict_Type;
   PyObject *return_value, *key, *value;
 
@@ -59,16 +79,16 @@ _speedups_loads(PyObject *self, PyObject *args, PyObject *keywds)
   return_value = PyObject_CallObject((PyObject *) return_type, NULL);
   
   // Each iteration will find one key/value pair
-  while ((p[0] = strchr(s, '"')) != NULL) {
+  while ((key_start = strchr(s, '"')) != NULL) {
     // move to the next character after the found "
-    p[0]++;
+    key_start++;
 
     // Find end of key
-    p[1] = strchr_unescaped(p[0], '"');
+    key_end = strchr_unescaped(key_start, '"');
 
     // Find begining of value or NULL
     for (i=1; 1; i++) {
-      switch (*(p[1]+i)) {
+      switch (*(key_end+i)) {
       case 'N':
       case 'n':
         // found NULL
@@ -76,7 +96,7 @@ _speedups_loads(PyObject *self, PyObject *args, PyObject *keywds)
         break;
       case '"':
         // found begining of value
-        p[2] = p[1]+i+1;
+        value_start = key_end+i+1;
         break;
       case '\0':
         // found end of string
@@ -88,11 +108,14 @@ _speedups_loads(PyObject *self, PyObject *args, PyObject *keywds)
       break;
     }
      
-    key = PyUnicode_Decode(p[0], p[1]-p[0], encoding, errors);
+    unescaped_key = unescape(key_start, key_end);
+    key = PyUnicode_Decode(unescaped_key, strlen(unescaped_key), encoding, errors);
     if (null_value == 0) {
       // find and null terminate end of value
-      p[3] = strchr_unescaped(p[2], '"');
-      value = PyUnicode_Decode(p[2], p[3] - p[2], encoding, errors);
+      value_end = strchr_unescaped(value_start, '"');
+      unescaped_value = unescape(value_start, value_end);
+      value = PyUnicode_Decode(unescaped_value, strlen(unescaped_value), encoding, errors);
+      free(unescaped_value);
     } else {
       Py_INCREF(Py_None);
       value = Py_None;
@@ -109,9 +132,9 @@ _speedups_loads(PyObject *self, PyObject *args, PyObject *keywds)
     
     // set new search position
     if (null_value == 0) {
-      s = p[3]+1;
+      s = value_end + 1;
     } else {
-      s = p[1]+i;
+      s = key_end + i;
     }
 
     // reset null value flag
