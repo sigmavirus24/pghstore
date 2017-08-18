@@ -142,6 +142,8 @@ _speedups_dumps(PyObject *self, PyObject *args, PyObject *keywds)
   PyObject *key_map_callback, *value_map_callback = NULL;
   PyObject *unencoded_key, *key, *unencoded_value, *value, *result;
   PyObject *comma, *arrow, *empty, *s_null, *citation;
+  PyObject *exception_string = NULL;
+  PyObject *exception_string_format_args = NULL;
   Py_ssize_t list_len, pos = 0;
   if (!PyArg_ParseTupleAndKeywords(args, keywds, "O|OOsO", keyword_argument_names, &obj, &key_map_callback, &value_map_callback, &encoding, &return_unicode)) {
     return NULL;
@@ -183,13 +185,21 @@ _speedups_dumps(PyObject *self, PyObject *args, PyObject *keywds)
         key = PyObject_Call(key_map_callback, PyTuple_Pack(1, key), PyDict_New());
     }
 
+    if (PyCallable_Check(value_map_callback)) {
+        unencoded_value = PyObject_CallObject(value_map_callback, PyTuple_Pack(1, unencoded_value));
+    }
     if (PyUnicode_Check(unencoded_value)) {
         value = PyUnicode_AsEncodedString(unencoded_value, encoding, errors);
     } else {
         value = unencoded_value;
     }
-    if (PyCallable_Check(value_map_callback)) {
-        value = PyObject_Call(value_map_callback, PyTuple_Pack(1, value), PyDict_New());
+
+    if (!PyBytes_Check(value)) {
+        exception_string = PyUnicode_FromString("value %r of %r is not a string");
+        exception_string_format_args = PyTuple_Pack(2, value, key);
+        PyErr_SetObject(PyExc_TypeError, PyUnicode_Format(exception_string, exception_string_format_args));
+        Py_CLEAR(result);
+        goto _speedup_dumps_cleanup_and_exit;
     }
     // PyList_SetItem(list, i, PyObject_Str(key)); i++;
     // Py_INCREF(citation);
