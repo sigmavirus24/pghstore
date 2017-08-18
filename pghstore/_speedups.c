@@ -137,22 +137,34 @@ _speedups_dumps(PyObject *self, PyObject *args, PyObject *keywds)
   int i = 0;
   const char *errors = "strict";
   char *encoding = "utf-8";
-  PyObject *obj; //, *list;
+  PyObject *obj, *list, *iter, *item;
   PyObject *return_unicode = Py_False;
-  PyObject *key_map_callback, *value_map_callback = NULL;
+  PyObject *key_map_callback = Py_None;
+  Py_INCREF(Py_None);
+  PyObject *value_map_callback = Py_None;
+  Py_INCREF(Py_None);
   PyObject *unencoded_key, *key, *unencoded_value, *value, *result;
   PyObject *comma, *arrow, *empty, *s_null, *citation;
   PyObject *exception_string = NULL;
   PyObject *exception_string_format_args = NULL;
-  Py_ssize_t list_len, pos = 0;
+  Py_ssize_t list_len = 0;
+
   if (!PyArg_ParseTupleAndKeywords(args, keywds, "O|OOsO", keyword_argument_names, &obj, &key_map_callback, &value_map_callback, &encoding, &return_unicode)) {
     return NULL;
   }
 
   // return empty string if we got an empty dict
   empty = PyBytes_FromString(EMPTY);
-  list_len = PyDict_Size(obj)*8-1;
-  if (list_len == -1) {
+
+  if (PyDict_Check(obj)) {
+      list = PyDict_Items(obj);
+      Py_DECREF(obj);
+  } else {
+      list = obj;
+  }
+
+  list_len = PyObject_Length(list);
+  if (list_len <= 0) {
     return empty;
   }
   
@@ -163,35 +175,41 @@ _speedups_dumps(PyObject *self, PyObject *args, PyObject *keywds)
   citation = PyBytes_FromString(CITATION);
   
   result = PyBytes_FromString(EMPTY);
-  //list = PyList_New(list_len);
+  iter = PyObject_GetIter(list);
 
-  while (PyDict_Next(obj, &pos, &unencoded_key, &unencoded_value)) {
+  while ((item = PyIter_Next(iter))) {
     // add comma (,)
     if (i > 0) {
-      // Py_INCREF(comma);
-      // PyList_SetItem(list, i, comma); i++;
       ConcatOrGotoCleanup(result, comma);
     }
     // add key
-    // Py_INCREF(citation);
-    // PyList_SetItem(list, i, citation); i++;
     ConcatOrGotoCleanup(result, citation);
+    unencoded_key = PyTuple_GetItem(item, 0);
+
+    if (key_map_callback != Py_None && PyCallable_Check(key_map_callback)) {
+        unencoded_key = PyObject_CallObject(key_map_callback, PyTuple_Pack(1, unencoded_key));
+    }
+
     if (PyUnicode_Check(unencoded_key)) {
         key = PyUnicode_AsEncodedString(unencoded_key, encoding, errors);
     } else {
-        key = PyObject_Str(unencoded_key);
-    }
-    if (PyCallable_Check(key_map_callback)) {
-        key = PyObject_Call(key_map_callback, PyTuple_Pack(1, key), PyDict_New());
+        if (PyBytes_Check(unencoded_key)) {
+            key = unencoded_key;
+            Py_INCREF(unencoded_key);
+        } else {
+            key = PyObject_Bytes(unencoded_key);
+        }
     }
 
-    if (PyCallable_Check(value_map_callback)) {
+    unencoded_value = PyTuple_GetItem(item, 1);
+    if (value_map_callback != Py_None && PyCallable_Check(value_map_callback)) {
         unencoded_value = PyObject_CallObject(value_map_callback, PyTuple_Pack(1, unencoded_value));
     }
     if (PyUnicode_Check(unencoded_value)) {
         value = PyUnicode_AsEncodedString(unencoded_value, encoding, errors);
     } else {
         value = unencoded_value;
+        Py_INCREF(unencoded_value);
     }
 
     if (!PyBytes_Check(value)) {
@@ -201,49 +219,40 @@ _speedups_dumps(PyObject *self, PyObject *args, PyObject *keywds)
         Py_CLEAR(result);
         goto _speedup_dumps_cleanup_and_exit;
     }
-    // PyList_SetItem(list, i, PyObject_Str(key)); i++;
-    // Py_INCREF(citation);
-    // PyList_SetItem(list, i, citation); i++;
+
     ConcatOrGotoCleanup(result, key);
     ConcatOrGotoCleanup(result, citation);
     // add arrow (=>)
-    // Py_INCREF(arrow);
-    // PyList_SetItem(list, i, arrow); i++;
     ConcatOrGotoCleanup(result, arrow);
     // add value or null
     if (value != Py_None) {
       // add value
-      // Py_INCREF(citation);
-      // PyList_SetItem(list, i, citation); i++;
-      // PyList_SetItem(list, i, PyObject_Str(value)); i++;
-      // Py_INCREF(citation);
-      // PyList_SetItem(list, i, citation); i++;
       ConcatOrGotoCleanup(result, citation);
-      ConcatOrGotoCleanup(result, PyObject_Str(value));
+      ConcatOrGotoCleanup(result, PyObject_Bytes(value));
       ConcatOrGotoCleanup(result, citation);
     } else {
       // add null
-      // Py_INCREF(empty);
-      // PyList_SetItem(list, i, empty); i++;
-      // Py_INCREF(s_null);
-      // PyList_SetItem(list, i, s_null); i++;
-      // Py_INCREF(empty);
-      // PyList_SetItem(list, i, empty); i++;
       ConcatOrGotoCleanup(result, empty);
       ConcatOrGotoCleanup(result, s_null);
       ConcatOrGotoCleanup(result, empty);
+
     }
+    Py_DECREF(item);
+    Py_DECREF(key);
+    Py_DECREF(unencoded_key);
+    Py_DECREF(value);
+    Py_DECREF(unencoded_value);
     i++;
   }
-  // result = PyObject_CallMethod(empty, "join", "O", list);
 _speedup_dumps_cleanup_and_exit:
   Py_DECREF(empty);
   Py_DECREF(comma);
   Py_DECREF(arrow);
   Py_DECREF(s_null);
   Py_DECREF(citation);
-  //Py_DECREF(list);
-  //
+  Py_DECREF(list);
+  Py_DECREF(iter);
+
   if (return_unicode == Py_True) {
       result = PyUnicode_FromEncodedObject(result, encoding, errors);
   }
