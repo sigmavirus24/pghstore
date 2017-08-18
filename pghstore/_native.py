@@ -42,16 +42,14 @@ def dumps(obj, key_map=None, value_map=None, encoding='utf-8',
 
     .. sourcecode:: pycon
 
-       >>> try:
-       ...    import json
-       ... except ImportError:
-       ...    import simplejson as json
+       >>> import json
        >>> dumps([('a', list(range(3))), ('b', 2)], value_map=json.dumps) == b'"a"=>"[0, 1, 2]","b"=>"2"'
        True
        >>> import pickle
-       >>> dumps([('a', list(range(3))), ('b', 2)],
+       >>> result = dumps([('a', list(range(3))), ('b', 2)],
        ...       value_map=pickle.dumps)  # doctest: +ELLIPSIS
-       b'"a"=>"...","b"=>"..."'
+
+       ...'"a"=>"...","b"=>"..."'
 
     It returns a UTF-8 encoded string, but you can change the ``encoding``:
 
