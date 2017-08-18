@@ -35,7 +35,11 @@ from .version import VERSION
 try:
     from ._speedups import dumps, loads
 except ImportError:
-    from ._native import dump, dumps, load, loads
+    try:
+        from ._native import dump, dumps, load, loads
+    except ImportError:
+        # XXX required to bootstrap setup.py with no pre-existing six
+        pass
 else:
     def dump(obj, file):
         file.write(dumps(obj, file))

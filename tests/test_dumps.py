@@ -1,41 +1,45 @@
 # -*- coding: utf-8 -*-
-import pprint
-
 import unittest
-import pghstore
+from pghstore import _native
+try:
+    from pghstore import _speedups
+except ImportError:
+    _speedups = None
 
 import six
 
 
 class DumpsTests(unittest.TestCase):
+    pghstore = _native
+
     def assertDumpsMatchesDict(self, s, d):
-        pairs = [u'"%s"=>%s' % (key, (u'"%s"' % value if value is not None else u"NULL"))\
-                     for key, value in six.iteritems(d)]
+        pairs = [u'"%s"=>%s' % (key, (u'"%s"' % value if value is not None else u"NULL"))
+                 for key, value in six.iteritems(d)]
         for pair in pairs:
             self.assertTrue(pair in s)
         self.assertEqual(len(",".join(pairs)), len(s))
 
     def test_empty(self):
-        self.assertEqual(pghstore.dumps({}), b"")
+        self.assertEqual(self.pghstore.dumps({}), b"")
 
     def test_one(self):
         d = {"key": "value"}
-        self.assertDumpsMatchesDict(pghstore.dumps(d, return_unicode=True), d)
+        self.assertDumpsMatchesDict(self.pghstore.dumps(d, return_unicode=True), d)
         d = {"name": "Norge/Noreg"}
-        self.assertDumpsMatchesDict(pghstore.dumps(d, return_unicode=True), d)
+        self.assertDumpsMatchesDict(self.pghstore.dumps(d, return_unicode=True), d)
 
     def test_two(self):
         d = {"key": "value", "key2": "value2"}
-        self.assertDumpsMatchesDict(pghstore.dumps(d, return_unicode=True), d)
+        self.assertDumpsMatchesDict(self.pghstore.dumps(d, return_unicode=True), d)
 
     def test_null(self):
         d = {"key": "value", "key2": "value2", "key3": None}
-        self.assertDumpsMatchesDict(pghstore.dumps(d, return_unicode=True), d)
+        self.assertDumpsMatchesDict(self.pghstore.dumps(d, return_unicode=True), d)
 
     def test_utf8(self):
         d = {"key": "value", "key2": "value2", "key3": None,
              "name": u"Noorwe\xc3\xab", "name2": u"öäå"}
-        self.assertDumpsMatchesDict(pghstore.dumps(d, return_unicode=True), d)
+        self.assertDumpsMatchesDict(self.pghstore.dumps(d, return_unicode=True), d)
 
     def test_large(self):
         d = {
@@ -108,4 +112,8 @@ class DumpsTests(unittest.TestCase):
             'official_name:sv': u'Konungariket Norge',
             'official_name:vi': u'V\u01b0\u01a1ng qu\u1ed1c Na Uy',
         }
-        self.assertDumpsMatchesDict(pghstore.dumps(d, return_unicode=True), d)
+        self.assertDumpsMatchesDict(self.pghstore.dumps(d, return_unicode=True), d)
+
+if _speedups:
+    class DumpsSpeedupsTests(DumpsTests):
+        pghstore = _speedups
