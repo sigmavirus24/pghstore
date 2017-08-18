@@ -11,6 +11,8 @@ import tempfile
 
 from setuptools import Extension, Feature, setup
 
+# Allow us to import the version string
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 from pghstore.version import VERSION
 
 
@@ -65,7 +67,7 @@ speedups = Feature(
     standard=True,
     available=not (is_jython or is_pypy),
     ext_modules=[
-        Extension('pghstore._speedups', ['pghstore/_speedups.c'],
+        Extension('pghstore._speedups', ['src/pghstore/_speedups.c'],
                   extra_compile_args=['-O3'])
     ]
 )
@@ -108,6 +110,7 @@ def run_setup(with_speedups):
     setup(
         name='pghstore',
         packages=['pghstore'],
+        package_dir={'': 'src'},
         features={'speedups': speedups} if with_speedups else {},
         version=VERSION,
         description='PostgreSQL hstore formatter',
