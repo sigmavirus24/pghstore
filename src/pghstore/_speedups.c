@@ -295,30 +295,24 @@ static struct PyModuleDef moduledef = {
 };
 
 PyMODINIT_FUNC
-PyInit_speedups(void)
-#else
-void
-init_speedups(void)
-#endif
+PyInit__speedups(void)
 {
     PyObject *module;
 
-#if PY_MAJOR_VERSION >= 3
     module = PyModule_Create(&moduledef);
     if (module == NULL) {
         return NULL;
     }
-#else
-    module = Py_InitModule("pghstore._speedups", CPgHstoreMethods);
-    if (module == NULL) {
-        return;
-    }
-#endif
 
-#if PY_MAJOR_VERSION >= 3
     return module;
-#endif
 }
+#else
+PyMODINIT_FUNC
+init_speedups(void)
+{
+    (void) Py_InitModule("pghstore._speedups", CPgHstoreMethods);
+}
+#endif
 
 int
 main(int argc, char *argv[])
@@ -334,8 +328,10 @@ main(int argc, char *argv[])
     /* Initialize the Python interpreter.  Required. */
     Py_Initialize();
 
+#if PY_MAJOR_VERSION < 3
     /* Add a static module */
     init_speedups();
+#endif
 
     return 0;
 }
