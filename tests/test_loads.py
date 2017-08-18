@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 import unittest
+import pytest
+
 from pghstore import _native
 try:
     from pghstore import _speedups
@@ -125,6 +127,6 @@ class LoadsTests(unittest.TestCase):
                 (u"official_name:vi", b"V\xc6\xb0\xc6\xa1ng qu\xe1\xbb\x91c Na Uy".decode('utf-8')),
             ])
 
-if _speedups:
-    class LoadsSpeedupsTests(LoadsTests):
-        pghstore = _speedups
+@pytest.mark.skipif(_speedups is None, reason="Could not compile C extensions for tests")
+class LoadsSpeedupsTests(LoadsTests):
+    pghstore = _speedups

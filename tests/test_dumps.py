@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 import unittest
+import pytest
+
 from pghstore import _native
 try:
     from pghstore import _speedups
@@ -114,6 +116,7 @@ class DumpsTests(unittest.TestCase):
         }
         self.assertDumpsMatchesDict(self.pghstore.dumps(d, return_unicode=True), d)
 
-if _speedups:
-    class DumpsSpeedupsTests(DumpsTests):
-        pghstore = _speedups
+
+@pytest.mark.skipif(_speedups is None, reason="Could not compile C extensions for tests")
+class DumpsSpeedupsTests(DumpsTests):
+    pghstore = _speedups
