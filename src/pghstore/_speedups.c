@@ -1,3 +1,4 @@
+#define PY_SSIZE_T_CLEAN
 #include <Python.h>
 #include <stdio.h>
 #include <string.h>
@@ -71,15 +72,22 @@ _speedups_loads(PyObject *self, PyObject *args, PyObject *keywds)
   const char *errors = "strict";
   char *encoding = "utf-8";
   char *s;
+  Py_ssize_t s_length = 0;
   int i, null_value = 0;
   char *unescaped_key, *unescaped_value;
   char *key_start, *key_end, *value_start, *value_end;
   PyTypeObject *return_type = &PyDict_Type;
   PyObject *return_value, *key, *value;
 
-  if (!PyArg_ParseTupleAndKeywords(args, keywds, "s|sO", keyword_argument_names, &s, &encoding, &return_type)) {
+  if (!PyArg_ParseTupleAndKeywords(args, keywds, "s#|sO", keyword_argument_names, &s, &s_length, &encoding, &return_type)) {
     return NULL;
   }
+  /* NOTE(sigmavirus24): Because we use `s#` to parse the input string, we
+   * also need to pass s_length to get the length of the string because `s`
+   * may have embedded null characters.
+   * All of our tests presently pass but it's plausible that we could find
+   * data with null characters inside and have to update this to match.
+   */
 
   return_value = PyObject_CallObject((PyObject *) return_type, NULL);
   
