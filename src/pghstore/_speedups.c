@@ -45,11 +45,16 @@ char *
 unescape(char *start_of_string, char *end_of_string)
 {
   ssize_t copy_index = 0;
+  ssize_t index;
   ssize_t string_length = (end_of_string - start_of_string) + 1;
+  /* NOTE(sigmavirus24): In the event that there are \s in the string, we're
+   * over-allocating here but that is okay since we're going to free shortly
+   * after use.
+   */
   char *unescaped_string = malloc(string_length);
   memset(unescaped_string, 0, string_length);
 
-  for (ssize_t index = 0; index < (string_length - 1); index++) {
+  for (index = 0; index < (string_length - 1); index++) {
       if (start_of_string[index] == '\\' && start_of_string[index + 1] != '\\') {
           continue;
       }
