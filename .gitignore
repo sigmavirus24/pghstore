@@ -8,3 +8,6 @@ pghstore/_speedups.so
 .*.swp
 .cache/
 *.so
+Cargo.lock
+*.venv/
+target/
