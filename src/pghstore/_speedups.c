@@ -73,6 +73,7 @@ _speedups_loads(PyObject *self, PyObject *args, PyObject *keywds)
   char *s;
   Py_ssize_t s_length = 0;
   int i, null_value = 0;
+  int is_dictionary = 0;
   char *unescaped_key, *unescaped_value;
   char *key_start, *key_end, *value_start, *value_end;
   PyTypeObject *return_type = &PyDict_Type;
@@ -89,6 +90,7 @@ _speedups_loads(PyObject *self, PyObject *args, PyObject *keywds)
    */
 
   return_value = PyObject_CallObject((PyObject *) return_type, NULL);
+  is_dictionary = PyDict_Check(return_value);
   
   // Each iteration will find one key/value pair
   while ((key_start = strchr(s, '"')) != NULL) {
@@ -134,7 +136,12 @@ _speedups_loads(PyObject *self, PyObject *args, PyObject *keywds)
       value = Py_None;
     }
 
-    if (PyDict_Check(return_value)) {
+    if (key == NULL || value == NULL) {
+        Py_DECREF(return_value);
+        return NULL;
+    }
+
+    if (is_dictionary) {
       PyDict_SetItem(return_value, key, value);
     } else {
       PyList_Append(return_value, PyTuple_Pack(2, key, value));
