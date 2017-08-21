@@ -1,0 +1,11 @@
+[package]
+name = "pghstorers"
+version = "0.1.0"
+authors = ["Ian Stapleton Cordasco <graffatcolmingov@gmail.com>"]
+
+[lib]
+# rlib is necessary so we can run benchmarks
+crate-type = ["rlib", "dylib"]
+
+[dependencies]
+libc = "0.2"
