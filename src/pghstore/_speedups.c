@@ -42,20 +42,30 @@ strchr_unescaped(char *s, char c)
 }
 
 /* Written to match pghstore._native.unescape but slightly smarter. */
-ssize_t
-unescape(char *copy_from, char *copy_to, ssize_t string_length)
+PyObject *
+unescape(char *copy_from_start, char *copy_from_end, char *encoding, const char *errors)
 {
+  /* NOTE(sigmavirus24): In the event that there are \s in the string, we're
+   * over-allocating here but that is okay since we're going to free shortly
+   * after use.
+   * The +1 is also necessary to ensure it's '\0' terminated.
+   */
+  ssize_t copy_max_length = (copy_from_end - copy_from_start) + 1;
   ssize_t copy_index = 0;
   ssize_t index;
+  char *copy_to = calloc(copy_max_length, sizeof(char));
+  PyObject *unicode;
 
-  for (index = 0; index < (string_length - 1); index++) {
-      if (copy_from[index] == '\\' && copy_from[index + 1] != '\\') {
+  for (index = 0; index < (copy_max_length - 1); index++) {
+      if (copy_from_start[index] == '\\' && copy_from_start[index + 1] != '\\') {
           continue;
       }
-      copy_to[copy_index++] = copy_from[index];
+      copy_to[copy_index++] = copy_from_start[index];
   }
+  unicode = PyUnicode_Decode(copy_to, copy_index, encoding, errors);
+  free(copy_to);
 
-  return copy_index;
+  return unicode;
 }
 
 static PyObject *
@@ -68,12 +78,7 @@ _speedups_loads(PyObject *self, PyObject *args, PyObject *keywds)
   Py_ssize_t s_length = 0;
   int i, null_value = 0;
   int is_dictionary = 0;
-  char *unescaped_key, *unescaped_value;
   char *key_start, *key_end, *value_start, *value_end;
-  ssize_t key_length = 0;
-  ssize_t value_length = 0;
-  ssize_t unescaped_key_length = 0;
-  ssize_t unescaped_value_length = 0;
   PyTypeObject *return_type = &PyDict_Type;
   PyObject *return_value, *key, *value;
 
@@ -119,28 +124,12 @@ _speedups_loads(PyObject *self, PyObject *args, PyObject *keywds)
       }
       break;
     }
-    key_length = (key_end - key_start) + 1;
-    /* NOTE(sigmavirus24): In the event that there are \s in the string, we're
-     * over-allocating here but that is okay since we're going to free shortly
-     * after use.
-     */
-    unescaped_key = calloc(key_length, sizeof(char));
      
-    unescaped_key_length = unescape(key_start, unescaped_key, key_length);
-    key = PyUnicode_Decode(unescaped_key, unescaped_key_length, encoding, errors);
-    free(unescaped_key);
+    key = unescape(key_start, key_end, encoding, errors);
     if (null_value == 0) {
       // find and null terminate end of value
       value_end = strchr_unescaped(value_start, '"');
-      value_length = (value_end - value_start) + 1;
-      /* NOTE(sigmavirus24): In the event that there are \s in the string,
-       * we're over-allocating here but that is okay since we're going to free
-       * shortly after use.
-       */
-      unescaped_value = calloc(value_length, sizeof(char));
-      unescaped_value_length = unescape(value_start, unescaped_value, value_length);
-      value = PyUnicode_Decode(unescaped_value, unescaped_value_length, encoding, errors);
-      free(unescaped_value);
+      value = unescape(value_start, value_end, encoding, errors);
     } else {
       Py_INCREF(Py_None);
       value = Py_None;
