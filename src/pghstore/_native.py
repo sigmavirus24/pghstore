@@ -244,16 +244,12 @@ def parse(string, encoding='utf-8'):
             key = unescape(kq)
         else:
             key = match.group('kb')
-        if isinstance(key, six.binary_type):
-            key = key.decode(encoding)
         vq = match.group('vq')
         if vq:
             value = unescape(vq)
         else:
             vn = match.group('vn')
             value = None if vn else match.group('vb')
-        if isinstance(value, six.binary_type):
-            value = value.decode(encoding)
         yield key, value
         offset = match.end()
     if offset > len(string) or string[offset:].strip():
