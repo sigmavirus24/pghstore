@@ -122,6 +122,7 @@ _speedups_loads(PyObject *self, PyObject *args, PyObject *keywds)
      
     unescaped_key = unescape(key_start, key_end);
     key = PyUnicode_Decode(unescaped_key, strlen(unescaped_key), encoding, errors);
+    free(unescaped_key);
     if (null_value == 0) {
       // find and null terminate end of value
       value_end = strchr_unescaped(value_start, '"');
