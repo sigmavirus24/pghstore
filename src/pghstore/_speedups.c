@@ -52,8 +52,7 @@ unescape(char *start_of_string, char *end_of_string)
    * over-allocating here but that is okay since we're going to free shortly
    * after use.
    */
-  char *unescaped_string = malloc(string_length);
-  memset(unescaped_string, 0, string_length);
+  char *unescaped_string = calloc(string_length, sizeof(char));
 
   for (index = 0; index < (string_length - 1); index++) {
       if (start_of_string[index] == '\\' && start_of_string[index + 1] != '\\') {
