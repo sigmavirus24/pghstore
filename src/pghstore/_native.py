@@ -162,7 +162,7 @@ def dump(obj, file, key_map=None, value_map=None, encoding='utf-8'):
     for key, value in items:
         if not isinstance(key, six.string_types):
             key = key_map(key)
-        elif not isinstance(key, six.binary_type):
+        if not isinstance(key, six.binary_type):
             key = key.encode(encoding)
         if value is None:
             value = None
