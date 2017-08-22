@@ -127,6 +127,17 @@ class LoadsTests(unittest.TestCase):
                 (u"official_name:vi", b"V\xc6\xb0\xc6\xa1ng qu\xe1\xbb\x91c Na Uy".decode('utf-8')),
             ])
 
+    def test_decode_failure_key(self):
+        s = b'"\x01\xb6\xc3\xa4\xc3\xa5"=>"123"'
+        with self.assertRaises(UnicodeDecodeError):
+            self.pghstore.loads(s)
+
+    def test_decode_failure_value(self):
+        s = b'"key"=>"\x01\xb6\xc3\xa4\xc3\xa5"'
+        with self.assertRaises(UnicodeDecodeError):
+            self.pghstore.loads(s)
+
+
 @pytest.mark.skipif(_speedups is None, reason="Could not compile C extensions for tests")
 class LoadsSpeedupsTests(LoadsTests):
     pghstore = _speedups

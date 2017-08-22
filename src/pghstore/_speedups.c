@@ -126,6 +126,9 @@ _speedups_loads(PyObject *self, PyObject *args, PyObject *keywds)
     }
      
     key = unescape(key_start, key_end, encoding, errors);
+    if (key == NULL) {
+        goto _speedup_loads_cleanup_and_exit;
+    }
     if (null_value == 0) {
       // find and null terminate end of value
       value_end = strchr_unescaped(value_start, '"');
@@ -136,6 +139,7 @@ _speedups_loads(PyObject *self, PyObject *args, PyObject *keywds)
     }
 
     if (key == NULL || value == NULL) {
+_speedup_loads_cleanup_and_exit:
         Py_XDECREF(key);
         Py_XDECREF(value);
         Py_DECREF(return_value);
@@ -150,6 +154,8 @@ _speedups_loads(PyObject *self, PyObject *args, PyObject *keywds)
 
     Py_DECREF(key);
     Py_DECREF(value);
+    key = NULL;
+    value = NULL;
     
     // set new search position
     if (null_value == 0) {
