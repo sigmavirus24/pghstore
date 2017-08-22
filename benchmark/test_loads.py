@@ -6,7 +6,10 @@ import timeit
 from functools import partial
 from math import floor
 
-from pghstore import _speedups as cpghstore
+try:
+    from pghstore import _speedups as cpghstore
+except ImportError:
+    cpghstore = None
 from pghstore import _native as pypghstore
 
 names = [
@@ -18,6 +21,7 @@ names = [
 ]
 
 tmpl = ".. n=%i, strlen=%i, cpghstore.loads (%.2fs) is %ix faster than pghstore.loads (%.2fs)"
+tmpl_2 = ".. n=%i, dictlen=%i, pghstore.dumps (%.2fs)"
 
 
 class LoadsBenchmark(unittest.TestCase):
@@ -25,8 +29,11 @@ class LoadsBenchmark(unittest.TestCase):
         n = 100000
         print("")
         for name in names:
-            cpg_time = timeit.timeit(partial(cpghstore.loads, name), number=n)
             pg_time = timeit.timeit(partial(pypghstore.loads, name), number=n)
-            self.assertTrue(cpg_time < pg_time)
+            if cpghstore is not None:
+                cpg_time = timeit.timeit(partial(cpghstore.loads, name), number=n)
+                self.assertTrue(cpg_time < pg_time)
 
-            print(tmpl % (n, len(name), cpg_time, floor(pg_time / cpg_time), pg_time))
+                print(tmpl % (n, len(name), cpg_time, floor(pg_time / cpg_time), pg_time))
+            else:
+                print(tmpl_2 % (n, len(name), pg_time))

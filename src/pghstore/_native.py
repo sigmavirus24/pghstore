@@ -160,13 +160,13 @@ def dump(obj, file, key_map=None, value_map=None, encoding='utf-8'):
                         'write() method')
     first = True
     for key, value in items:
-        if not isinstance(key, six.string_types):
+        if not isinstance(key, six.string_types) and not isinstance(key, six.binary_type):
             key = key_map(key)
         if not isinstance(key, six.binary_type):
             key = key.encode(encoding)
         if value is None:
             value = None
-        elif not isinstance(value, six.string_types):
+        elif not (isinstance(value, six.string_types) or isinstance(value, six.binary_type)):
             if value_map is None:
                 raise TypeError('value %r of key %r is not a string' %
                                 (value, key))
