@@ -136,6 +136,12 @@ _speedups_loads(PyObject *self, PyObject *args, PyObject *keywds)
     }
 
     if (key == NULL || value == NULL) {
+        if (key != NULL) {
+            Py_DECREF(key);
+        }
+        if (value != NULL) {
+            Py_DECREF(value);
+        }
         Py_DECREF(return_value);
         return NULL;
     }
