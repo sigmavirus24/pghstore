@@ -10,5 +10,11 @@ matrix:
       env: TOXENV=py36
     - python: pypy
       env: TOXENV=pypy
+    - python: 2.7
+      env: TOXENV=py27-benchmark
+    - python: 3.6
+      env: TOXENV=py36-benchmark
+    - python: pypy
+      env: TOXENV=pypy-benchmark
 install: pip install tox
 script: tox
