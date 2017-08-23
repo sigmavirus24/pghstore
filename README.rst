@@ -1,9 +1,9 @@
 pghstore
 ========
 
-.. image:: https://secure.travis-ci.org/dahlia/pghstore.png?branch=master
+.. image:: https://secure.travis-ci.org/heroku/pghstore.png?branch=master
    :alt: Build Status
-   :target: http://travis-ci.org/dahlia/pghstore
+   :target: http://travis-ci.org/heroku/pghstore
 
 This small module implements a formatter and a loader for hstore_,
 one of PostgreSQL_ supplied modules, that stores simple key-value pairs.
@@ -33,6 +33,13 @@ http://dahlia.github.com/pghstore/
 
 Changelog
 ---------
+
+Version 2.0.0
+'''''''''''''
+
+- Supports Python 2.7+ and Python3.5+ both natively and with C extension
+
+- Drops support for Python 2.5 and 2.6
 
 Version 0.9.2
 '''''''''''''
