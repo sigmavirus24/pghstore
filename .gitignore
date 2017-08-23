@@ -7,3 +7,4 @@ pghstore/_speedups.so
 *.pyc
 .*.swp
 .cache/
+*.so

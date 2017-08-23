@@ -1,8 +1,9 @@
+from __future__ import print_function
 import re
-try:
-    import cStringIO as StringIO
-except ImportError:
-    import StringIO
+
+import six
+
+import io
 
 
 def dumps(obj, key_map=None, value_map=None, encoding='utf-8',
@@ -11,18 +12,18 @@ def dumps(obj, key_map=None, value_map=None, encoding='utf-8',
 
     .. sourcecode:: pycon
 
-       >>> dumps({u'a': u'1 "quotes"'})
-       '"a"=>"1 \\"quotes\\""'
-       >>> dumps([('key', 'value'), ('k', 'v')])
-       '"key"=>"value","k"=>"v"'
+       >>> dumps({u'a': u'1 "quotes"'}) == b'"a"=>"1 \\"quotes\\""'
+       True
+       >>> dumps([('key', 'value'), ('k', 'v')]) == b'"key"=>"value","k"=>"v"'
+       True
 
     It accepts only strings as keys and values except ``None`` for values.
     Otherwise it will raise :exc:`TypeError`:
 
     .. sourcecode:: pycon
 
-       >>> dumps({'null': None})
-       '"null"=>NULL'
+       >>> dumps({'null': None}) == b'"null"=>NULL'
+       True
        >>> dumps([('a', 1), ('b', 2)])
        Traceback (most recent call last):
          ...
@@ -33,41 +34,39 @@ def dumps(obj, key_map=None, value_map=None, encoding='utf-8',
 
     .. sourcecode:: pycon
 
-       >>> dumps([('a', 1), ('b', 2)], value_map=str)
-       '"a"=>"1","b"=>"2"'
+       >>> dumps([('a', 1), ('b', 2)], value_map=str) == b'"a"=>"1","b"=>"2"'
+       True
 
     By applying these options, you can store any other Python objects
     than strings into ``hstore`` values:
 
     .. sourcecode:: pycon
 
-       >>> try:
-       ...    import json
-       ... except ImportError:
-       ...    import simplejson as json
-       >>> dumps([('a', range(3)), ('b', 2)], value_map=json.dumps)
-       '"a"=>"[0, 1, 2]","b"=>"2"'
+       >>> import json
+       >>> dumps([('a', list(range(3))), ('b', 2)], value_map=json.dumps) == b'"a"=>"[0, 1, 2]","b"=>"2"'
+       True
        >>> import pickle
-       >>> dumps([('a', range(3)), ('b', 2)],
+       >>> result = dumps([('a', list(range(3))), ('b', 2)],
        ...       value_map=pickle.dumps)  # doctest: +ELLIPSIS
-       '"a"=>"...","b"=>"..."'
+
+       ...'"a"=>"...","b"=>"..."'
 
     It returns a UTF-8 encoded string, but you can change the ``encoding``:
 
     .. sourcecode:: pycon
 
-       >>> dumps({'surname': u'\ud64d'})
-       '"surname"=>"\xed\x99\x8d"'
-       >>> dumps({'surname': u'\ud64d'}, encoding='utf-32')
-       '"surname"=>"\xff\xfe\x00\x00M\xd6\x00\x00"'
+       >>> dumps({u'surname': u'\ud64d'}) == b'"surname"=>"\xed\x99\x8d"'
+       True
+       >>> dumps({u'surname': u'\ud64d'}, encoding='utf-32') == b'"\xff\xfe\x00\x00s\x00\x00\x00u\x00\x00\x00r\x00\x00\x00n\x00\x00\x00a\x00\x00\x00m\x00\x00\x00e\x00\x00\x00"=>"\xff\xfe\x00\x00M\xd6\x00\x00"'
+       True
 
-    If you set ``return_unicode`` to ``True``, it will return :class:`unicode`
+    If you set ``return_unicode`` to ``True``, it will return :class:`six.text_type`
     instead of :class:`str` (byte string):
 
     .. sourcecode:: pycon
 
-       >>> dumps({'surname': u'\ud64d'}, return_unicode=True)
-       u'"surname"=>"\ud64d"'
+       >>> dumps({'surname': u'\ud64d'}, return_unicode=True) == u'"surname"=>"\ud64d"'
+       True
 
     :param obj: a mapping object to dump
     :param key_map: an optional mapping function that takes a non-string key
@@ -75,14 +74,14 @@ def dumps(obj, key_map=None, value_map=None, encoding='utf-8',
     :param value_map: an optional mapping function that takes a non-string
                       value and returns a mapped string value
     :param encoding: a string encode to use
-    :param return_unicode: returns an :class:`unicode` string instead
+    :param return_unicode: returns an :class:`six.text_type` string instead
                            byte :class:`str`.  ``False`` by default
     :type return_unicode: :class:`bool`
     :returns: a ``hstore`` data
-    :rtype: :class:`basestring`
+    :rtype: :class:`six.string_types`
 
     """
-    b = StringIO.StringIO()
+    b = io.BytesIO()
     dump(obj, b, key_map=key_map, value_map=value_map, encoding=encoding)
     result = b.getvalue()
     if return_unicode:
@@ -95,8 +94,8 @@ def loads(string, encoding='utf-8', return_type=dict):
 
     .. sourcecode:: pycon
 
-       >>> loads('a=>1')
-       {u'a': u'1'}
+       >>> loads('a=>1') == {u'a': u'1'}
+       True
 
     If you want to load a hstore value as any other type than :class:`dict`
     set ``return_type`` parameter.  Note that the constructor has to take
@@ -104,15 +103,15 @@ def loads(string, encoding='utf-8', return_type=dict):
 
     .. sourcecode:: pycon
 
-       >>> loads('a=>1, b=>2', return_type=list)
-       [(u'a', u'1'), (u'b', u'2')]
-       >>> loads('"return_type"=>"tuple"', return_type=tuple)
-       ((u'return_type', u'tuple'),)
+       >>> loads('a=>1, b=>2', return_type=list) == [(u'a', u'1'), (u'b', u'2')]
+       True
+       >>> loads('"return_type"=>"tuple"', return_type=tuple) == ((u'return_type', u'tuple'),)
+       True
 
     :param string: a hstore format string
-    :type string: :class:`basestring`
+    :type string: :class:`six.string_types`
     :param encoding: an encoding of the passed ``string``.  if the ``string``
-                     is an :class:`unicode` string, this parameter will be
+                     is an :class:`six.text_type` string, this parameter will be
                      ignored
     :param return_type: a map type of return value.  default is :class:`dict`
     :returns: a parsed map.  its type is decided by ``return_type`` parameter
@@ -127,11 +126,11 @@ def dump(obj, file, key_map=None, value_map=None, encoding='utf-8'):
 
     .. sourcecode:: pycon
 
-       >>> import StringIO
-       >>> f = StringIO.StringIO()
+       >>> import io
+       >>> f = io.BytesIO()
        >>> dump({u'a': u'1'}, f)
-       >>> f.getvalue()
-       '"a"=>"1"'
+       >>> f.getvalue() == b'"a"=>"1"'
+       True
 
     :param obj: a mapping object to dump
     :param file: a file object to write into
@@ -142,9 +141,7 @@ def dump(obj, file, key_map=None, value_map=None, encoding='utf-8'):
     :param encoding: a string encode to use
 
     """
-    if callable(getattr(obj, 'iteritems', None)):
-        items = obj.iteritems()
-    elif callable(getattr(obj, 'items', None)):
+    if callable(getattr(obj, 'items', None)):
         items = obj.items()
     elif callable(getattr(obj, '__iter__', None)):
         items = iter(obj)
@@ -163,31 +160,31 @@ def dump(obj, file, key_map=None, value_map=None, encoding='utf-8'):
                         'write() method')
     first = True
     for key, value in items:
-        if not isinstance(key, basestring):
+        if not isinstance(key, six.string_types) and not isinstance(key, six.binary_type):
             key = key_map(key)
-        elif not isinstance(key, str):
+        if not isinstance(key, six.binary_type):
             key = key.encode(encoding)
         if value is None:
             value = None
-        elif not isinstance(value, basestring):
+        elif not (isinstance(value, six.string_types) or isinstance(value, six.binary_type)):
             if value_map is None:
                 raise TypeError('value %r of key %r is not a string' %
                                 (value, key))
             value = value_map(value)
-        elif not isinstance(value, str):
+        if value is not None and not isinstance(value, six.binary_type):
             value = value.encode(encoding)
         if first:
-            write('"')
+            write(b'"')
             first = False
         else:
-            write(',"')
+            write(b',"')
         write(escape(key))
         if value is None:
-            write('"=>NULL')
+            write(b'"=>NULL')
         else:
-            write('"=>"')
+            write(b'"=>"')
             write(escape(value))
-            write('"')
+            write(b'"')
 
 
 def load(file, encoding='utf-8'):
@@ -199,7 +196,7 @@ def load(file, encoding='utf-8'):
     if not callable(read):
         raise TypeError('file must be a readable file object that implements '
                         'read() method')
-    return load(read(), encoding=encoding)
+    return loads(read(), encoding=encoding)
 
 
 #: The pattern of pairs.  It captures following four groups:
@@ -213,9 +210,12 @@ def load(file, encoding='utf-8'):
 #: ``vq``
 #:    Quoted value string.
 #:
-#: ``kq``
+#: ``vn``
+#:    NULL value.
+#:
+#: ``vb``
 #:    Bare value string.
-PAIR_RE = re.compile(r'(?:"(?P<kq>(?:[^\\"]|\\.)*)"|(?P<kb>\S+?))\s*=>\s*'
+PAIR_RE = re.compile(r'(?:"(?P<kq>(?:[^\\"]|\\.)*)"|(?P<kb>\S+?))\s*(=>|:)\s*'
                      r'(?:"(?P<vq>(?:[^\\"]|\\.)*)"|(?P<vn>NULL)|'
                      r'(?P<vb>[^,]+))(?:,|$)', re.IGNORECASE)
 
@@ -227,12 +227,14 @@ def parse(string, encoding='utf-8'):
 
     .. sourcecode:: pycon
 
-       >>> list(parse('a=>1, b => 2, c => null, d => "NULL"'))
-       [(u'a', u'1'), (u'b', u'2'), (u'c', None), (u'd', u'NULL')]
-       >>> list(parse(r'"a=>1"=>"\"b\"=>2",'))
-       [(u'a=>1', u'"b"=>2')]
+       >>> list(parse('a=>1, b => 2, c => null, d => "NULL"')) == [(u'a', u'1'), (u'b', u'2'), (u'c', None), (u'd', u'NULL')]
+       True
+       >>> list(parse(r'"a=>1"=>"\"b\"=>2",')) == [(u'a=>1', u'"b"=>2')]
+       True
 
     """
+    if isinstance(string, six.binary_type):
+        string = string.decode(encoding)
     offset = 0
     for match in PAIR_RE.finditer(string):
         if offset > match.start() or string[offset:match.start()].strip():
@@ -242,16 +244,12 @@ def parse(string, encoding='utf-8'):
             key = unescape(kq)
         else:
             key = match.group('kb')
-        if isinstance(key, str):
-            key = key.decode(encoding)
         vq = match.group('vq')
         if vq:
             value = unescape(vq)
         else:
             vn = match.group('vn')
             value = None if vn else match.group('vb')
-        if isinstance(value, str):
-            value = value.decode(encoding)
         yield key, value
         offset = match.end()
     if offset > len(string) or string[offset:].strip():
@@ -277,12 +275,14 @@ def unescape(s):
 
 
 def escape(s):
-    r"""Escapes quotes and backslashes for use in hstore strings.
+    r"""Escapes quotes and backslashes for use in hstore byte strings.
 
     .. sourcecode:: pycon
 
-       >>> escape('string with "quotes"')
-       'string with \\"quotes\\"'
+       >>> escape(b'string with "quotes"') == b'string with \\"quotes\\"'
+       True
     """
-    return s.replace('\\', '\\\\').replace('"', '\\"')
-
+    if isinstance(s, six.binary_type):
+        return s.replace(b'\\', b'\\\\').replace(b'"', b'\\"')
+    else:
+        return s.replace('\\', '\\\\').replace('"', '\\"')
