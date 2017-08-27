@@ -11,10 +11,12 @@ pub fn dump_keypair(key: &String, value: &Option<String>) -> String {
     format!("\"{}\"=>{}", escaped_key, escaped_value)
 }
 
+
 pub fn dump_hashmap(map: &HashMap<String, Option<String>>) -> String {
     let pairs = map.iter().map(|(key, value)| dump_keypair(key, value));
     pairs.collect::<Vec<_>>().join(",")
 }
+
 
 #[cfg(test)]
 mod tests {
