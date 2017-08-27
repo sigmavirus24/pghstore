@@ -8,9 +8,22 @@ struct HStoreItem {
     char *value;
 };
 
-char *hstore_dumps(struct HStoreItem *, size_t);
-char *hstore_dumps_keypair(char *, char *);
-void  hstore_dumps_free(char *);
+struct ParsedHStoreItem {
+    char *key;
+    char *value;
+};
+
+char *
+hstore_dumps(struct HStoreItem *, size_t);
+
+void
+hstore_dumps_free(char *);
+
+struct ParsedHStoreItem*
+hstore_loads(char *, int *);
+
+void
+hstore_loads_free(struct ParsedHStoreItem *);
 """)
 
 
@@ -49,3 +62,24 @@ def dumps(dictionary):
     cdata = lib.hstore_dumps(hstore_items, len(keypairs))
     cdata = ffi.gc(cdata, lib.hstore_dumps_free)
     return ffi.string(cdata)
+
+
+def loads(hstore_string):
+    """Load a string into a dictionary."""
+    hstore_char_ptr = char_from(hstore_string)
+    returned_length = ffi.new("int *", 0)
+    cdata = lib.hstore_loads(hstore_char_ptr, returned_length)
+    cdata = ffi.gc(cdata, lib.hstore_loads_free)
+    return_value = {}
+    length = returned_length[0]
+    print('Returned length of %d' % length)
+    for i in range(length):
+        item = cdata[i]
+        import pdb; pdb.set_trace()
+        print("i: %d, cdata.key: %r" % (i, item.key))
+        value = None
+        if item.value != ffi.NULL:
+            value = ffi.string(item.value)
+            print("Value: %s" % value)
+        return_value[ffi.string(item.key)] = value
+    return return_value
