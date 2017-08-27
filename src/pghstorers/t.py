@@ -72,14 +72,10 @@ def loads(hstore_string):
     cdata = ffi.gc(cdata, lib.hstore_loads_free)
     return_value = {}
     length = returned_length[0]
-    print('Returned length of %d' % length)
     for i in range(length):
         item = cdata[i]
-        import pdb; pdb.set_trace()
-        print("i: %d, cdata.key: %r" % (i, item.key))
         value = None
         if item.value != ffi.NULL:
             value = ffi.string(item.value)
-            print("Value: %s" % value)
         return_value[ffi.string(item.key)] = value
     return return_value
