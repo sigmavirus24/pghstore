@@ -3,6 +3,7 @@ extern crate libc;
 use libc::{c_char, size_t};
 use std::collections::HashMap;
 use std::ffi::{CStr, CString};
+use std::mem;
 use std::ptr::null_mut;
 use std::slice;
 use std::string::String;
@@ -88,7 +89,9 @@ pub extern "C" fn hstore_loads(string: *const c_char, length: *mut size_t)
         .collect();
     let mut items_slice: Box<[ParsedHStoreItem]> = items_vec.into_boxed_slice();
     unsafe { *length = items_slice.len() };
-    items_slice.as_mut_ptr()
+    let ptr: *mut ParsedHStoreItem = items_slice.as_mut_ptr();
+    mem::forget(items_slice);
+    ptr
 }
 
 #[no_mangle]
