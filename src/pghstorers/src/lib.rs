@@ -77,16 +77,15 @@ fn pair_to_item(pair: &(String, Option<String>)) -> ParsedHStoreItem {
 }
 
 #[no_mangle]
-pub extern "C" fn hstore_loads(string: *const c_char, length: *mut size_t)
-    -> *mut ParsedHStoreItem
-{
+pub extern "C" fn hstore_loads(
+    string: *const c_char,
+    length: *mut size_t,
+) -> *mut ParsedHStoreItem {
     let hstore_string = convert_cchar(string);
 
     let string_pairs = load::load_into_vec(&hstore_string);
-    let items_vec: Vec<ParsedHStoreItem> = string_pairs
-        .iter()
-        .map(|pair| pair_to_item(pair))
-        .collect();
+    let items_vec: Vec<ParsedHStoreItem> =
+        string_pairs.iter().map(|pair| pair_to_item(pair)).collect();
     let mut items_slice: Box<[ParsedHStoreItem]> = items_vec.into_boxed_slice();
     unsafe { *length = items_slice.len() };
     let ptr: *mut ParsedHStoreItem = items_slice.as_mut_ptr();

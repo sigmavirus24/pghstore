@@ -73,9 +73,7 @@ struct HStoreParser<'a> {
 impl<'a> HStoreParser<'a> {
     fn from_string(hstore_string: &String) -> HStoreParser {
         let chars = hstore_string.chars().peekable();
-        HStoreParser {
-            chars: Cell::new(chars),
-        }
+        HStoreParser { chars: Cell::new(chars) }
     }
 }
 
@@ -92,7 +90,7 @@ impl<'a> Iterator for HStoreParser<'a> {
             Some(&'"') => false,
             _ => true,
         });
-        chars.next();  // skip the dquote
+        chars.next(); // skip the dquote
         let mut key = String::new();
         let mut value = String::new();
         collect_and_unescape(&mut chars, &mut key);
@@ -105,14 +103,14 @@ impl<'a> Iterator for HStoreParser<'a> {
                 chars.next(); // skip the dquote
                 collect_and_unescape(&mut chars, &mut value);
                 Some((key, Some(value)))
-            },
+            }
             Some(&'N') | Some(&'n') => {
                 if is_null(&mut chars) {
                     Some((key, None))
                 } else {
                     panic!("Error parsing value for key ```{}```", key);
                 }
-            },
+            }
             _ => panic!("Error parsing ```{}```", chars.collect::<String>()),
         }
     }
@@ -141,21 +139,23 @@ mod tests {
 
     #[test]
     fn unescapes_escaped_quotes() {
-        let s = String::from("\"key_\\\"with\\\"_quote\"  =>  \"value_\\\"with\\\"_quote\"");
+        let s = String::from(
+            "\"key_\\\"with\\\"_quote\"  =>  \"value_\\\"with\\\"_quote\"",
+        );
         let value = String::from("value_\"with\"_quote");
         let pairs_map = load_into_hashmap(&s);
         assert_eq!(pairs_map.len(), 1);
-        assert_eq!(pairs_map.get("key_\"with\"_quote"),
-                   Some(&Some(value)));
+        assert_eq!(pairs_map.get("key_\"with\"_quote"), Some(&Some(value)));
     }
 
     #[test]
     fn unescapes_escaped_escape_characters() {
-        let s = String::from("\"key_\\\\with\\\\_backslash\"  =>  \"value_\\\\with\\\\_backslash\"");
+        let s = String::from(
+            "\"key_\\\\with\\\\_backslash\"  =>  \"value_\\\\with\\\\_backslash\"",
+        );
         let value = String::from("value_\\with\\_backslash");
         let pairs_map = load_into_hashmap(&s);
         assert_eq!(pairs_map.len(), 1);
-        assert_eq!(pairs_map.get("key_\\with\\_backslash"),
-                   Some(&Some(value)));
+        assert_eq!(pairs_map.get("key_\\with\\_backslash"), Some(&Some(value)));
     }
 }

@@ -3,9 +3,7 @@ use std::string::String;
 
 
 fn escape(to_escape: &String) -> String {
-    to_escape
-        .replace("\\", "\\\\")
-        .replace("\"", "\\\"")
+    to_escape.replace("\\", "\\\\").replace("\"", "\\\"")
 }
 
 pub fn dump_keypair(key: &String, value: &Option<String>) -> String {

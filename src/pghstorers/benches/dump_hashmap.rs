@@ -43,15 +43,15 @@ fn benchmark_dump_hashmap(b: &mut Bencher) {
             let key = format!("{}{}", character, i);
             let value = Some(character.to_string());
             let longer_key = format!("very_very_very_very_very_very_long_{}_{}", character, i);
-            let longer_value = Some(
-                format!("uber_uber_uber_very_very_very_very_very_very_long_{}_{}", character, i)
-            );
+            let longer_value = Some(format!(
+                "uber_uber_uber_very_very_very_very_very_very_long_{}_{}",
+                character,
+                i
+            ));
 
             map.insert(key, value);
             map.insert(longer_key, longer_value);
         }
     }
-    b.iter(|| {
-        pghstorers::dump::dump_hashmap(&map);
-    })
+    b.iter(|| { pghstorers::dump::dump_hashmap(&map); })
 }
