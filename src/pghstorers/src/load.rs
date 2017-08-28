@@ -148,4 +148,14 @@ mod tests {
         assert_eq!(pairs_map.get("key_\"with\"_quote"),
                    Some(&Some(value)));
     }
+
+    #[test]
+    fn unescapes_escaped_escape_characters() {
+        let s = String::from("\"key_\\\\with\\\\_backslash\"  =>  \"value_\\\\with\\\\_backslash\"");
+        let value = String::from("value_\\with\\_backslash");
+        let pairs_map = load_into_hashmap(&s);
+        assert_eq!(pairs_map.len(), 1);
+        assert_eq!(pairs_map.get("key_\\with\\_backslash"),
+                   Some(&Some(value)));
+    }
 }

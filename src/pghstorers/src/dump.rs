@@ -2,10 +2,16 @@ use std::collections::HashMap;
 use std::string::String;
 
 
+fn escape(to_escape: &String) -> String {
+    to_escape
+        .replace("\\", "\\\\")
+        .replace("\"", "\\\"")
+}
+
 pub fn dump_keypair(key: &String, value: &Option<String>) -> String {
-    let escaped_key = key.replace("\"", "\\\"");
+    let escaped_key = escape(key);
     let escaped_value = match *value {
-        Some(ref unescaped_value) => format!("\"{}\"", unescaped_value.replace("\"", "\\\"")),
+        Some(ref unescaped_value) => format!("\"{}\"", escape(unescaped_value)),
         None => "NULL".to_string(),
     };
     format!("\"{}\"=>{}", escaped_key, escaped_value)
@@ -47,6 +53,17 @@ mod tests {
                 &Some("my_\"quoted\"_value".to_string()),
             ),
             "\"my_\\\"quoted\\\"_key\"=>\"my_\\\"quoted\\\"_value\""
+        );
+    }
+
+    #[test]
+    fn converts_to_hstore_key_value_with_backslashes() {
+        assert_eq!(
+            dump_keypair(
+                &"my_\\escaped\\_key".to_string(),
+                &Some("my_\\escaped\\_value".to_string()),
+            ),
+            "\"my_\\\\escaped\\\\_key\"=>\"my_\\\\escaped\\\\_value\""
         );
     }
 
