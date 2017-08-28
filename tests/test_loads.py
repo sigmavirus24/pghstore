@@ -137,6 +137,10 @@ class LoadsTests(unittest.TestCase):
         with self.assertRaises(UnicodeDecodeError):
             self.pghstore.loads(s)
 
+    def test_round_trip_double_quotes(self):
+        d = {'key_"quoted"_string': 'value_"quoted"_string'}
+        self.assertDictEqual(d, self.pghstore.loads(self.pghstore.dumps(d)))
+
 
 @pytest.mark.skipif(_speedups is None, reason="Could not compile C extensions for tests")
 class LoadsSpeedupsTests(LoadsTests):
