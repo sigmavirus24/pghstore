@@ -124,6 +124,8 @@ _speedups_loads(PyObject *self, PyObject *args, PyObject *keywds)
    * may have embedded null characters.
    * All of our tests presently pass but it's plausible that we could find
    * data with null characters inside and have to update this to match.
+   * We need `s#` as a format argument here so we can receive both unicode and
+   * bytes objects in char *s.
    */
 
   return_value = PyObject_CallObject((PyObject *) return_type, NULL);
