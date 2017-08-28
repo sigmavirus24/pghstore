@@ -375,7 +375,7 @@ static PyMethodDef CPgHstoreMethods[] = {
     {NULL, NULL, 0, NULL}        /* Sentinel */
 };
 
-#if PY_MAJOR_VERSION >= 3
+#if IS_PY3
 static int pghstore_speedups_traverse(PyObject *m, visitproc visit, void *arg) {
     Py_VISIT(GETSTATE(m)->error);
     return 0;
@@ -421,7 +421,7 @@ init_speedups(void)
 int
 main(int argc, char *argv[])
 {
-#if PY_MAJOR_VERSION >= 3
+#if IS_PY3
     wchar_t *program = Py_DecodeLocale(argv[0], NULL);
     /* Pass program name to the Python interpreter */
     Py_SetProgramName(program);
@@ -432,7 +432,7 @@ main(int argc, char *argv[])
     /* Initialize the Python interpreter.  Required. */
     Py_Initialize();
 
-#if PY_MAJOR_VERSION < 3
+#if IS_PY2
     /* Add a static module */
     init_speedups();
 #endif
