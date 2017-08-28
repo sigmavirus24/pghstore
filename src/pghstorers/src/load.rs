@@ -122,4 +122,30 @@ impl<'a> Iterator for HStoreParser<'a> {
 #[cfg(test)]
 mod tests {
     use super::{load_into_vec, load_into_hashmap};
+
+    #[test]
+    fn parses_a_single_pair() {
+        let s = String::from("\"key\"=>\"value\"");
+        let pairs_vec = load_into_vec(&s);
+        assert_eq!(pairs_vec.len(), 1);
+        let pairs_map = load_into_hashmap(&s);
+        assert_eq!(pairs_map.len(), 1);
+    }
+
+    #[test]
+    fn allows_spaces_around_hashrocket() {
+        let s = String::from("\"key\"  =>  \"value\"");
+        let pairs_map = load_into_hashmap(&s);
+        assert_eq!(pairs_map.len(), 1);
+    }
+
+    #[test]
+    fn unescapes_escaped_quotes() {
+        let s = String::from("\"key_\\\"with\\\"_quote\"  =>  \"value_\\\"with\\\"_quote\"");
+        let value = String::from("value_\"with\"_quote");
+        let pairs_map = load_into_hashmap(&s);
+        assert_eq!(pairs_map.len(), 1);
+        assert_eq!(pairs_map.get("key_\"with\"_quote"),
+                   Some(&Some(value)));
+    }
 }
