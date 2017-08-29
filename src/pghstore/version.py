@@ -17,7 +17,7 @@ __all__ = 'VERSION', 'VERSION_INFO'
 
 
 #: (:class:`tuple`) The version tuple e.g. ``(0, 9, 2)``.
-VERSION_INFO = (2, 0, 0)
+VERSION_INFO = (2, 0, 1)
 
 #: (:class:`six.string_types`) The version string e.g. ``'0.9.2'``.
 VERSION = '%d.%d.%d' % VERSION_INFO
