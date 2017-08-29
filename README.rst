@@ -34,6 +34,11 @@ http://dahlia.github.com/pghstore/
 Changelog
 ---------
 
+Version 2.0.1
+'''''''''''''
+
+- Fixes a regression in behaviour with escape characters
+
 Version 2.0.0
 '''''''''''''
 
