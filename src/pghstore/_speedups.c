@@ -65,8 +65,8 @@ unescape(char *copy_from_start, char *copy_from_end, char *encoding, const char 
   PyObject *unicode;
 
   for (index = 0; index < (copy_max_length - 1); index++) {
-      if (copy_from_start[index] == '\\' && copy_from_start[index + 1] != '\\') {
-          continue;
+      if (copy_from_start[index] == '\\') {
+          index++;
       }
       copy_to[copy_index++] = copy_from_start[index];
   }

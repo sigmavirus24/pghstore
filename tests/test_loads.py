@@ -145,6 +145,10 @@ class LoadsTests(unittest.TestCase):
         d = {'key_\\escaped\\_string': 'value_\\escaped\\_string'}
         self.assertDictEqual(d, self.pghstore.loads(self.pghstore.dumps(d)))
 
+    def test_load_escape_with_dquote(self):
+        s = r'"failing"=>"some test \\\""'
+        self.assertDictEqual({"failing": 'some test \\"'}, self.pghstore.loads(s))
+
 
 @pytest.mark.skipif(_speedups is None, reason="Could not compile C extensions for tests")
 class LoadsSpeedupsTests(LoadsTests):
