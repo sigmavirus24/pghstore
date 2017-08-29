@@ -7,7 +7,15 @@ struct module_state {
     PyObject *error;
 };
 
-#if PY_MAJOR_VERSION >= 3
+#ifndef IS_PY3
+#define IS_PY3 PY_MAJOR_VERSION == 3
+#endif
+
+#ifndef IS_PY2
+#define IS_PY2 PY_MAJOR_VERSION == 2
+#endif
+
+#if IS_PY3
 #define GETSTATE(m) ((struct module_state*)PyModule_GetState(m))
 #endif
 
@@ -57,8 +65,8 @@ unescape(char *copy_from_start, char *copy_from_end, char *encoding, const char 
   PyObject *unicode;
 
   for (index = 0; index < (copy_max_length - 1); index++) {
-      if (copy_from_start[index] == '\\' && copy_from_start[index + 1] != '\\') {
-          continue;
+      if (copy_from_start[index] == '\\') {
+          index++;
       }
       copy_to[copy_index++] = copy_from_start[index];
   }
@@ -66,6 +74,32 @@ unescape(char *copy_from_start, char *copy_from_end, char *encoding, const char 
   free(copy_to);
 
   return unicode;
+}
+
+PyObject *
+escape(PyObject* to_escape)
+{
+    PyObject *intermediately_escaped;
+    PyObject *escaped;
+#if IS_PY3
+    /* We're operating on a bytes object and what the char*s treated as bytes
+     * objects too.
+     */
+    char *build_value_format_string = "yy";
+#else
+    /* We're operating on a str object and what the char*s treated as str
+     * objects too.
+     */
+    char *build_value_format_string = "ss";
+#endif
+
+    intermediately_escaped = PyObject_CallMethod(to_escape, "replace", build_value_format_string, "\\", "\\\\");
+    if (!intermediately_escaped) {
+        return NULL;
+    }
+    escaped = PyObject_CallMethod(intermediately_escaped, "replace", build_value_format_string, "\"", "\\\"");
+    Py_DECREF(intermediately_escaped);
+    return escaped;
 }
 
 static PyObject *
@@ -90,6 +124,8 @@ _speedups_loads(PyObject *self, PyObject *args, PyObject *keywds)
    * may have embedded null characters.
    * All of our tests presently pass but it's plausible that we could find
    * data with null characters inside and have to update this to match.
+   * We need `s#` as a format argument here so we can receive both unicode and
+   * bytes objects in char *s.
    */
 
   return_value = PyObject_CallObject((PyObject *) return_type, NULL);
@@ -189,7 +225,9 @@ _speedups_dumps(PyObject *self, PyObject *args, PyObject *keywds)
   Py_INCREF(Py_None);
   PyObject *value_map_callback = Py_None;
   Py_INCREF(Py_None);
-  PyObject *unencoded_key, *key, *unencoded_value, *value, *result;
+  PyObject *unencoded_key, *unescaped_key, *key;
+  PyObject *unencoded_value, *unescaped_value, *value;
+  PyObject *result;
   PyObject *comma, *arrow, *empty, *s_null, *citation;
   PyObject *exception_string = NULL;
   PyObject *exception_string_format_args = NULL;
@@ -245,14 +283,20 @@ _speedups_dumps(PyObject *self, PyObject *args, PyObject *keywds)
     }
 
     if (PyUnicode_Check(unencoded_key)) {
-        key = PyUnicode_AsEncodedString(unencoded_key, encoding, errors);
+        unescaped_key = PyUnicode_AsEncodedString(unencoded_key, encoding, errors);
     } else {
         if (PyBytes_Check(unencoded_key)) {
-            key = unencoded_key;
+            unescaped_key = unencoded_key;
             Py_INCREF(unencoded_key);
         } else {
-            key = PyObject_Bytes(unencoded_key);
+            unescaped_key = PyObject_Bytes(unencoded_key);
         }
+    }
+
+    key = escape(unescaped_key);
+    Py_DECREF(unescaped_key);
+    if (key == NULL) {
+        goto _speedup_dumps_cleanup_and_exit;
     }
 
     unencoded_value = PyTuple_GetItem(item, 1);
@@ -260,10 +304,20 @@ _speedups_dumps(PyObject *self, PyObject *args, PyObject *keywds)
         unencoded_value = PyObject_CallObject(value_map_callback, PyTuple_Pack(1, unencoded_value));
     }
     if (PyUnicode_Check(unencoded_value)) {
-        value = PyUnicode_AsEncodedString(unencoded_value, encoding, errors);
+        unescaped_value = PyUnicode_AsEncodedString(unencoded_value, encoding, errors);
     } else {
-        value = unencoded_value;
+        unescaped_value = unencoded_value;
         Py_INCREF(unencoded_value);
+    }
+
+    if (unescaped_value != Py_None) {
+        value = escape(unescaped_value);
+        Py_DECREF(unescaped_value);
+        if (value == NULL) {
+            goto _speedup_dumps_cleanup_and_exit;
+        }
+    } else {
+        value = unescaped_value;
     }
 
     ConcatOrGotoCleanup(result, key);
@@ -321,7 +375,7 @@ static PyMethodDef CPgHstoreMethods[] = {
     {NULL, NULL, 0, NULL}        /* Sentinel */
 };
 
-#if PY_MAJOR_VERSION >= 3
+#if IS_PY3
 static int pghstore_speedups_traverse(PyObject *m, visitproc visit, void *arg) {
     Py_VISIT(GETSTATE(m)->error);
     return 0;
@@ -367,7 +421,7 @@ init_speedups(void)
 int
 main(int argc, char *argv[])
 {
-#if PY_MAJOR_VERSION >= 3
+#if IS_PY3
     wchar_t *program = Py_DecodeLocale(argv[0], NULL);
     /* Pass program name to the Python interpreter */
     Py_SetProgramName(program);
@@ -378,7 +432,7 @@ main(int argc, char *argv[])
     /* Initialize the Python interpreter.  Required. */
     Py_Initialize();
 
-#if PY_MAJOR_VERSION < 3
+#if IS_PY2
     /* Add a static module */
     init_speedups();
 #endif

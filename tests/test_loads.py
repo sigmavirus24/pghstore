@@ -137,6 +137,22 @@ class LoadsTests(unittest.TestCase):
         with self.assertRaises(UnicodeDecodeError):
             self.pghstore.loads(s)
 
+    def test_round_trip_double_quotes(self):
+        d = {'key_"quoted"_string': 'value_"quoted"_string'}
+        self.assertDictEqual(d, self.pghstore.loads(self.pghstore.dumps(d)))
+
+    def test_round_trip_escaped_characters(self):
+        d = {'key_\\escaped\\_string': 'value_\\escaped\\_string'}
+        self.assertDictEqual(d, self.pghstore.loads(self.pghstore.dumps(d)))
+
+    def test_load_escape_with_dquote(self):
+        s = r'"failing"=>"some test \\\""'
+        self.assertDictEqual({"failing": r'some test \"'}, self.pghstore.loads(s))
+
+    def test_roundtrip_with_all_the_escapables(self):
+        d = {"failing": r'some test \"'}
+        self.assertDictEqual(d, self.pghstore.loads(self.pghstore.dumps(d)))
+
 
 @pytest.mark.skipif(_speedups is None, reason="Could not compile C extensions for tests")
 class LoadsSpeedupsTests(LoadsTests):

@@ -38,6 +38,20 @@ class DumpsTests(unittest.TestCase):
         d = {"key": "value", "key2": "value2", "key3": None}
         self.assertDumpsMatchesDict(self.pghstore.dumps(d, return_unicode=True), d)
 
+    def test_values_with_quotes(self):
+        d = {'key_"quoted"_string': 'value_"quoted"_string'}
+        self.assertEqual(u'"key_\\"quoted\\"_string"=>"value_\\"quoted\\"_string"',
+                         self.pghstore.dumps(d, return_unicode=True))
+
+    def test_escaped_values(self):
+        d = {'key_\\escaped\\_string': 'value_\\escaped\\_string'}
+        self.assertEqual(u'"key_\\\\escaped\\\\_string"=>"value_\\\\escaped\\\\_string"',
+                         self.pghstore.dumps(d, return_unicode=True))
+
+    def test_all_the_escapes(self):
+        d = {"failing": r'some test \"'}
+        self.assertEqual(b'"failing"=>"some test \\\\\\""', self.pghstore.dumps(d))
+
     def test_utf8(self):
         d = {"key": "value", "key2": "value2", "key3": None,
              "name": u"Noorwe\xc3\xab", "name2": u"öäå"}
