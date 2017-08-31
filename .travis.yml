@@ -13,6 +13,15 @@ matrix:
     - language: python
       python: pypy
       env: TOXENV=pypy
+    - language: python
+      python: 2.7
+      env: TOXENV=py27-benchmark
+    - language: python
+      python: 3.6
+      env: TOXENV=py36-benchmark
+    - language: python
+      python: pypy
+      env: TOXENV=pypy-benchmark
     - language: rust
       rust: stable
     - language: rust

@@ -7,7 +7,15 @@ struct module_state {
     PyObject *error;
 };
 
-#if PY_MAJOR_VERSION >= 3
+#ifndef IS_PY3
+#define IS_PY3 PY_MAJOR_VERSION == 3
+#endif
+
+#ifndef IS_PY2
+#define IS_PY2 PY_MAJOR_VERSION == 2
+#endif
+
+#if IS_PY3
 #define GETSTATE(m) ((struct module_state*)PyModule_GetState(m))
 #endif
 
@@ -42,27 +50,56 @@ strchr_unescaped(char *s, char c)
 }
 
 /* Written to match pghstore._native.unescape but slightly smarter. */
-char *
-unescape(char *start_of_string, char *end_of_string)
+PyObject *
+unescape(char *copy_from_start, char *copy_from_end, char *encoding, const char *errors)
 {
-  ssize_t copy_index = 0;
-  ssize_t index;
-  ssize_t string_length = (end_of_string - start_of_string) + 1;
   /* NOTE(sigmavirus24): In the event that there are \s in the string, we're
    * over-allocating here but that is okay since we're going to free shortly
    * after use.
+   * The +1 is also necessary to ensure it's '\0' terminated.
    */
-  char *unescaped_string = malloc(string_length);
-  memset(unescaped_string, 0, string_length);
+  ssize_t copy_max_length = (copy_from_end - copy_from_start) + 1;
+  ssize_t copy_index = 0;
+  ssize_t index;
+  char *copy_to = calloc(copy_max_length, sizeof(char));
+  PyObject *unicode;
 
-  for (index = 0; index < (string_length - 1); index++) {
-      if (start_of_string[index] == '\\' && start_of_string[index + 1] != '\\') {
-          continue;
+  for (index = 0; index < (copy_max_length - 1); index++) {
+      if (copy_from_start[index] == '\\') {
+          index++;
       }
-      unescaped_string[copy_index++] = start_of_string[index];
+      copy_to[copy_index++] = copy_from_start[index];
   }
+  unicode = PyUnicode_Decode(copy_to, copy_index, encoding, errors);
+  free(copy_to);
 
-  return unescaped_string;
+  return unicode;
+}
+
+PyObject *
+escape(PyObject* to_escape)
+{
+    PyObject *intermediately_escaped;
+    PyObject *escaped;
+#if IS_PY3
+    /* We're operating on a bytes object and what the char*s treated as bytes
+     * objects too.
+     */
+    char *build_value_format_string = "yy";
+#else
+    /* We're operating on a str object and what the char*s treated as str
+     * objects too.
+     */
+    char *build_value_format_string = "ss";
+#endif
+
+    intermediately_escaped = PyObject_CallMethod(to_escape, "replace", build_value_format_string, "\\", "\\\\");
+    if (!intermediately_escaped) {
+        return NULL;
+    }
+    escaped = PyObject_CallMethod(intermediately_escaped, "replace", build_value_format_string, "\"", "\\\"");
+    Py_DECREF(intermediately_escaped);
+    return escaped;
 }
 
 static PyObject *
@@ -74,7 +111,7 @@ _speedups_loads(PyObject *self, PyObject *args, PyObject *keywds)
   char *s;
   Py_ssize_t s_length = 0;
   int i, null_value = 0;
-  char *unescaped_key, *unescaped_value;
+  int is_dictionary = 0;
   char *key_start, *key_end, *value_start, *value_end;
   PyTypeObject *return_type = &PyDict_Type;
   PyObject *return_value, *key, *value;
@@ -87,9 +124,12 @@ _speedups_loads(PyObject *self, PyObject *args, PyObject *keywds)
    * may have embedded null characters.
    * All of our tests presently pass but it's plausible that we could find
    * data with null characters inside and have to update this to match.
+   * We need `s#` as a format argument here so we can receive both unicode and
+   * bytes objects in char *s.
    */
 
   return_value = PyObject_CallObject((PyObject *) return_type, NULL);
+  is_dictionary = PyDict_Check(return_value);
   
   // Each iteration will find one key/value pair
   while ((key_start = strchr(s, '"')) != NULL) {
@@ -121,20 +161,28 @@ _speedups_loads(PyObject *self, PyObject *args, PyObject *keywds)
       break;
     }
      
-    unescaped_key = unescape(key_start, key_end);
-    key = PyUnicode_Decode(unescaped_key, strlen(unescaped_key), encoding, errors);
+    key = unescape(key_start, key_end, encoding, errors);
+    if (key == NULL) {
+        goto _speedup_loads_cleanup_and_exit;
+    }
     if (null_value == 0) {
       // find and null terminate end of value
       value_end = strchr_unescaped(value_start, '"');
-      unescaped_value = unescape(value_start, value_end);
-      value = PyUnicode_Decode(unescaped_value, strlen(unescaped_value), encoding, errors);
-      free(unescaped_value);
+      value = unescape(value_start, value_end, encoding, errors);
     } else {
       Py_INCREF(Py_None);
       value = Py_None;
     }
 
-    if (PyDict_Check(return_value)) {
+    if (key == NULL || value == NULL) {
+_speedup_loads_cleanup_and_exit:
+        Py_XDECREF(key);
+        Py_XDECREF(value);
+        Py_DECREF(return_value);
+        return NULL;
+    }
+
+    if (is_dictionary) {
       PyDict_SetItem(return_value, key, value);
     } else {
       PyList_Append(return_value, PyTuple_Pack(2, key, value));
@@ -142,6 +190,8 @@ _speedups_loads(PyObject *self, PyObject *args, PyObject *keywds)
 
     Py_DECREF(key);
     Py_DECREF(value);
+    key = NULL;
+    value = NULL;
     
     // set new search position
     if (null_value == 0) {
@@ -175,7 +225,9 @@ _speedups_dumps(PyObject *self, PyObject *args, PyObject *keywds)
   Py_INCREF(Py_None);
   PyObject *value_map_callback = Py_None;
   Py_INCREF(Py_None);
-  PyObject *unencoded_key, *key, *unencoded_value, *value, *result;
+  PyObject *unencoded_key, *unescaped_key, *key;
+  PyObject *unencoded_value, *unescaped_value, *value;
+  PyObject *result;
   PyObject *comma, *arrow, *empty, *s_null, *citation;
   PyObject *exception_string = NULL;
   PyObject *exception_string_format_args = NULL;
@@ -231,14 +283,20 @@ _speedups_dumps(PyObject *self, PyObject *args, PyObject *keywds)
     }
 
     if (PyUnicode_Check(unencoded_key)) {
-        key = PyUnicode_AsEncodedString(unencoded_key, encoding, errors);
+        unescaped_key = PyUnicode_AsEncodedString(unencoded_key, encoding, errors);
     } else {
         if (PyBytes_Check(unencoded_key)) {
-            key = unencoded_key;
+            unescaped_key = unencoded_key;
             Py_INCREF(unencoded_key);
         } else {
-            key = PyObject_Bytes(unencoded_key);
+            unescaped_key = PyObject_Bytes(unencoded_key);
         }
+    }
+
+    key = escape(unescaped_key);
+    Py_DECREF(unescaped_key);
+    if (key == NULL) {
+        goto _speedup_dumps_cleanup_and_exit;
     }
 
     unencoded_value = PyTuple_GetItem(item, 1);
@@ -246,10 +304,20 @@ _speedups_dumps(PyObject *self, PyObject *args, PyObject *keywds)
         unencoded_value = PyObject_CallObject(value_map_callback, PyTuple_Pack(1, unencoded_value));
     }
     if (PyUnicode_Check(unencoded_value)) {
-        value = PyUnicode_AsEncodedString(unencoded_value, encoding, errors);
+        unescaped_value = PyUnicode_AsEncodedString(unencoded_value, encoding, errors);
     } else {
-        value = unencoded_value;
+        unescaped_value = unencoded_value;
         Py_INCREF(unencoded_value);
+    }
+
+    if (unescaped_value != Py_None) {
+        value = escape(unescaped_value);
+        Py_DECREF(unescaped_value);
+        if (value == NULL) {
+            goto _speedup_dumps_cleanup_and_exit;
+        }
+    } else {
+        value = unescaped_value;
     }
 
     ConcatOrGotoCleanup(result, key);
@@ -307,7 +375,7 @@ static PyMethodDef CPgHstoreMethods[] = {
     {NULL, NULL, 0, NULL}        /* Sentinel */
 };
 
-#if PY_MAJOR_VERSION >= 3
+#if IS_PY3
 static int pghstore_speedups_traverse(PyObject *m, visitproc visit, void *arg) {
     Py_VISIT(GETSTATE(m)->error);
     return 0;
@@ -353,7 +421,7 @@ init_speedups(void)
 int
 main(int argc, char *argv[])
 {
-#if PY_MAJOR_VERSION >= 3
+#if IS_PY3
     wchar_t *program = Py_DecodeLocale(argv[0], NULL);
     /* Pass program name to the Python interpreter */
     Py_SetProgramName(program);
@@ -364,7 +432,7 @@ main(int argc, char *argv[])
     /* Initialize the Python interpreter.  Required. */
     Py_Initialize();
 
-#if PY_MAJOR_VERSION < 3
+#if IS_PY2
     /* Add a static module */
     init_speedups();
 #endif
