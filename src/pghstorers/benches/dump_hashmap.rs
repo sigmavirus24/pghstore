@@ -8,7 +8,7 @@ use test::Bencher;
 
 
 #[bench]
-fn benchmark_dump_hashmap(b: &mut Bencher) {
+fn benchmark_dump_longer_keys_values_hashmap(b: &mut Bencher) {
     let alphabet = [
         "a",
         "b",
@@ -53,5 +53,14 @@ fn benchmark_dump_hashmap(b: &mut Bencher) {
             map.insert(longer_key, longer_value);
         }
     }
+    b.iter(|| { pghstorers::dump::dump_hashmap(&map); })
+}
+
+
+#[bench]
+fn dump_small_maps(b: &mut Bencher) {
+    let mut map: HashMap<String, Option<String>> = HashMap::new();
+    map.insert(String::from("a"), None);
+    map.insert(String::from("b"), Some(String::from("c")));
     b.iter(|| { pghstorers::dump::dump_hashmap(&map); })
 }
