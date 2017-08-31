@@ -4,14 +4,16 @@ use std::iter::{Iterator, Peekable};
 use std::str::Chars;
 use std::string::String;
 
-pub fn load_into_vec(hstore_string: &String) -> Vec<(String, Option<String>)> {
-    let parser = HStoreParser::from_string(hstore_string);
+pub fn load_into_vec<S: Into<String>>(hstore_string: S) -> Vec<(String, Option<String>)> {
+    let to_parse = hstore_string.into();
+    let parser = HStoreParser::from(&to_parse);
     parser.collect::<Vec<(String, Option<String>)>>()
 }
 
 
-pub fn load_into_hashmap(hstore_string: &String) -> HashMap<String, Option<String>> {
-    let parser = HStoreParser::from_string(hstore_string);
+pub fn load_into_hashmap<S: Into<String>>(hstore_string: S) -> HashMap<String, Option<String>> {
+    let to_parse = hstore_string.into();
+    let parser = HStoreParser::from(&to_parse);
     parser.collect::<HashMap<String, Option<String>>>()
 }
 
@@ -65,13 +67,13 @@ fn is_null<'a>(chars: &mut Peekable<Chars<'a>>) -> bool {
 }
 
 
-struct HStoreParser<'a> {
+pub struct HStoreParser<'a> {
     chars: Cell<Peekable<Chars<'a>>>,
 }
 
 
 impl<'a> HStoreParser<'a> {
-    fn from_string(hstore_string: &String) -> HStoreParser {
+    pub fn from(hstore_string: &String) -> HStoreParser {
         let chars = hstore_string.chars().peekable();
         HStoreParser { chars: Cell::new(chars) }
     }
@@ -87,10 +89,14 @@ impl<'a> Iterator for HStoreParser<'a> {
             return None;
         }
         skip_chars_while(&mut chars, |c| match c {
-            Some(&'"') => false,
+            // We want to stop if we hit None
+            Some(&'"') | None => false,
             _ => true,
         });
-        chars.next(); // skip the dquote
+        // Skip the dquote if it exists
+        if chars.next() == None {
+            return None;
+        }
         let mut key = String::new();
         let mut value = String::new();
         collect_and_unescape(&mut chars, &mut key);
@@ -111,7 +117,7 @@ impl<'a> Iterator for HStoreParser<'a> {
                     panic!("Error parsing value for key ```{}```", key);
                 }
             }
-            _ => panic!("Error parsing ```{}```", chars.collect::<String>()),
+            _ => None,
         }
     }
 }
@@ -123,17 +129,17 @@ mod tests {
 
     #[test]
     fn parses_a_single_pair() {
-        let s = String::from("\"key\"=>\"value\"");
-        let pairs_vec = load_into_vec(&s);
+        let s: &str = "\"key\"=>\"value\"";
+        let pairs_vec = load_into_vec(s);
         assert_eq!(pairs_vec.len(), 1);
-        let pairs_map = load_into_hashmap(&s);
+        let pairs_map = load_into_hashmap(s);
         assert_eq!(pairs_map.len(), 1);
     }
 
     #[test]
     fn allows_spaces_around_hashrocket() {
         let s = String::from("\"key\"  =>  \"value\"");
-        let pairs_map = load_into_hashmap(&s);
+        let pairs_map = load_into_hashmap(s);
         assert_eq!(pairs_map.len(), 1);
     }
 
@@ -143,7 +149,7 @@ mod tests {
             "\"key_\\\"with\\\"_quote\"  =>  \"value_\\\"with\\\"_quote\"",
         );
         let value = String::from("value_\"with\"_quote");
-        let pairs_map = load_into_hashmap(&s);
+        let pairs_map = load_into_hashmap(s);
         assert_eq!(pairs_map.len(), 1);
         assert_eq!(pairs_map.get("key_\"with\"_quote"), Some(&Some(value)));
     }
@@ -154,8 +160,9 @@ mod tests {
             "\"key_\\\\with\\\\_backslash\"  =>  \"value_\\\\with\\\\_backslash\"",
         );
         let value = String::from("value_\\with\\_backslash");
-        let pairs_map = load_into_hashmap(&s);
+        let pairs_map = load_into_hashmap(s);
         assert_eq!(pairs_map.len(), 1);
         assert_eq!(pairs_map.get("key_\\with\\_backslash"), Some(&Some(value)));
     }
+
 }

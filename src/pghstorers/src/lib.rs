@@ -83,7 +83,7 @@ pub extern "C" fn hstore_loads(
 ) -> *mut ParsedHStoreItem {
     let hstore_string = convert_cchar(string);
 
-    let string_pairs = load::load_into_vec(&hstore_string);
+    let string_pairs = load::load_into_vec(hstore_string);
     let items_vec: Vec<ParsedHStoreItem> =
         string_pairs.iter().map(|pair| pair_to_item(pair)).collect();
     let mut items_slice: Box<[ParsedHStoreItem]> = items_vec.into_boxed_slice();
