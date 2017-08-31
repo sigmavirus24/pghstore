@@ -34,3 +34,4 @@ script:
   - if [[ -n "$TOXENV" ]] ; then tox; fi
   - if [[ -z "$TOXENV" ]] ; then cargo build --verbose --all ; fi
   - if [[ -z "$TOXENV" ]] ; then cargo test --verbose --all ; fi
+  - if [[ -z "$TOXENV" ]] && [[ "$TRAVIS_RUST_VERSION" == "nightly" ]] ; then cargo bench --verbose --all ; fi
