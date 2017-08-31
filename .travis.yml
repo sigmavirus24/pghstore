@@ -1,14 +1,27 @@
 sudo: false
-language: python
 matrix:
   include:
-    - python: 2.7
+    - language: python
+      python: 2.7
       env: TOXENV=py27
-    - python: 3.5
+    - language: python
+      python: 3.5
       env: TOXENV=py35
-    - python: 3.6
+    - language: python
+      python: 3.6
       env: TOXENV=py36
-    - python: pypy
+    - language: python
+      python: pypy
       env: TOXENV=pypy
-install: pip install tox
-script: tox
+    - language: rust
+      rust: stable
+    - language: rust
+      rust: beta
+    - language: rust
+      rust: nightly
+install:
+  - if [[ -n "$TOXENV" ]] ; then pip install tox; fi
+script:
+  - if [[ -n "$TOXENV" ]] ; then tox; fi
+  - if [[ -z "$TOXENV" ]] ; then cargo build --verbose --all ; fi
+  - if [[ -z "$TOXENV" ]] ; then cargo test --verbose --all ; fi
