@@ -1,168 +1,83 @@
 from __future__ import print_function
-from distutils.cmd import Command
-from distutils.command.build_ext import build_ext
-from distutils.errors import (CCompilerError, DistutilsExecError,
-                              DistutilsPlatformError)
+
+from distutils.command.build_py import build_py
 import os
-import os.path
 import shutil
+import setuptools
+import subprocess
 import sys
-import tempfile
-
-from setuptools import Extension, Feature, setup
-
-# Allow us to import the version string
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
-from pghstore.version import VERSION
 
 
-try:
-    readme_f = open('README.rst')
-    long_description = readme_f.read()
-    readme_f.close()
-except IOError:
-    long_description = None
-
-tests_require = None
+LIBRARY_TYPE = 'dylib' if sys.platform == 'darwin' else 'so'
+BUILT_LIB_FILENAME = 'libpghstorers.{}'.format(LIBRARY_TYPE)
+PACKAGE = 'pghstore'
 
 
-class upload_doc(Command):
-    """Uploads the documentation to GitHub pages."""
+def build_rustlib(base_path):
+    """Build our cargo library."""
+    library_path = os.path.join(base_path, BUILT_LIB_FILENAME)
+    current_working_dir = os.path.abspath(os.path.dirname(__file__))
+    cargo_build = ['cargo', 'build', '--release']
+    if sys.stdout.isatty():
+        cargo_build.append('--color=always')
 
-    description = __doc__
-    user_options = []
+    exit_code = subprocess.Popen(cargo_build, cwd=current_working_dir).wait()
+    if exit_code != 0:
+        sys.exit(exit_code)
 
-    def initialize_options(self):
-        pass
+    built_lib = os.path.join(
+        current_working_dir, 'target', 'release', BUILT_LIB_FILENAME,
+    )
+    if os.path.isfile(built_lib):
+        print('copying {} to {}'.format(built_lib, library_path))
+        shutil.copy2(built_lib, library_path)
 
-    def finalize_options(self):
-        pass
+
+class BuildPy(build_py):
+    """Replace our default build command."""
 
     def run(self):
-        path = tempfile.mkdtemp()
-        build = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                             'build', 'sphinx', 'html')
-        os.chdir(path)
-        os.system('git clone git@github.com:dahlia/pghstore.git .')
-        os.system('git checkout gh-pages')
-        os.system('git rm -r .')
-        os.system('touch .nojekyll')
-        os.system('cp -r ' + build + '/* .')
-        os.system('git stage .')
-        os.system('git commit -a -m "Documentation updated."')
-        os.system('git push origin gh-pages')
-        shutil.rmtree(path)
+        """Run our default build process and include our Rust library."""
+        build_py.run(self)
+        build_rustlib(os.path.join(self.build_lib, PACKAGE))
 
 
-# Most of the following codes to allow C extension building to fail were
-# copied from MarkupSafe's setup.py script.
-# https://github.com/mitsuhiko/markupsafe/blob/master/setup.py
-
-is_jython = 'java' in sys.platform
-is_pypy = hasattr(sys, 'pypy_version_info')
-
-
-speedups = Feature(
+c_speedups = setuptools.Feature(
     'optional C speed-enhancement module',
     standard=True,
-    available=not (is_jython or is_pypy),
+    available=not ('java' in sys.platform or
+                   getattr(sys, 'pypy_version_info', None)),
     ext_modules=[
-        Extension('pghstore._speedups', ['src/pghstore/_speedups.c'],
-                  extra_compile_args=['-O3'])
+        setuptools.Extension(
+            'pghstore._speedups', ['src/pghstore/_speedups.c'],
+            extra_compile_args=['-O3']
+        ),
     ]
 )
 
 
-ext_errors = CCompilerError, DistutilsExecError, DistutilsPlatformError
-if sys.platform == 'win32' and sys.version_info > (2, 6):
-    # 2.6's distutils.msvc9compiler can raise an IOError when failing to
-    # find the compiler
-    ext_errors += (IOError,)
-
-
-class BuildFailed(Exception):
-
-    pass
-
-
-class ve_build_ext(build_ext):
-    """This class allows C extension building to fail."""
-
-    def run(self):
-        try:
-            build_ext.run(self)
-        except DistutilsPlatformError:
-            raise BuildFailed()
-
-    def build_extension(self, ext):
-        try:
-            build_ext.build_extension(self, ext)
-        except ext_errors:
-            raise BuildFailed()
-        except ValueError:
-            # this can happen on Windows 64 bit, see Python issue 7511
-            if "'path'" in str(sys.exc_info()[1]): # works with Python 2 and 3
-                raise BuildFailed()
-            raise
-
-
-def run_setup(with_speedups):
-    setup(
-        name='pghstore',
-        packages=['pghstore'],
-        package_dir={'': 'src'},
-        features={'speedups': speedups} if with_speedups else {},
-        version=VERSION,
-        description='PostgreSQL hstore formatter',
-        long_description=long_description,
-        license='MIT License',
-        author='Hong Minhee',
-        author_email='minhee' '@' 'dahlia.kr',
-        maintainer='Robert Kajic',
-        maintainer_email='robert' '@' 'kajic.com',
-        url='https://github.com/dahlia/pghstore',
-        test_suite='pghstoretests.tests',
-        install_requires=['six'],
-        tests_require=tests_require,
-        platforms=['any'],
-        cmdclass={
-            'build_ext': ve_build_ext,
-            'upload_doc': upload_doc
-        },
-        classifiers=[
-            'Development Status :: 4 - Beta',
-            'Intended Audience :: Developers',
-            'License :: OSI Approved :: MIT License',
-            'Operating System :: OS Independent',
-            'Programming Language :: Python :: 2.5',
-            'Programming Language :: Python :: 2.6',
-            'Programming Language :: Python :: 2.7',
-            'Programming Language :: Python :: 2 :: Only',
-            'Programming Language :: Python :: Implementation :: CPython',
-            'Programming Language :: Python :: Implementation :: PyPy',
-            'Programming Language :: Python :: Implementation :: Stackless',
-            'Topic :: Database',
-            'Topic :: Software Development :: Libraries :: Python Modules'
-        ]
-    )
-
-
-def try_building_extension():
-    try:
-        run_setup(True)
-    except BuildFailed:
-        print('=' * 74)
-        print('WARNING: The C extension could not be compiled,', end=' ')
-        print('speedups are not enabled.')
-        print('Failure information, if any, is above.')
-        print('Retrying the build without the C extension now.')
-        print()
-        run_setup(False)
-        print('=' * 74)
-        print('WARNING: The C extension could not be compiled,', end=' ')
-        print('speedups are not enabled.')
-        print('Plain-Python installation succeeded.')
-        print('=' * 74)
-
-
-try_building_extension()
+setuptools.setup(
+    name='pghstore',
+    packages=[PACKAGE],
+    package_dir={'': 'src'},
+    version='3.0.0',
+    features={
+        'cspeedups': c_speedups,
+    },
+    install_requires=['six', 'cffi>=1.6.0'],
+    cmdclass={
+        'build_py': BuildPy,
+    },
+    classifiers=[
+        'Development Status :: 4 - Beta',
+        'Intended Audience :: Developers',
+        'License :: OSI Approved :: MIT License',
+        'Operating System :: OS Independent',
+        'Programming Language :: Python :: 2.7',
+        'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: Implementation :: CPython',
+        'Programming Language :: Python :: Implementation :: PyPy',
+        'Topic :: Database',
+        'Topic :: Software Development :: Libraries :: Python Modules'
+    ],
+)
