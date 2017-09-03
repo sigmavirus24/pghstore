@@ -128,6 +128,13 @@ mod tests {
     use super::{load_into_vec, load_into_hashmap};
 
     #[test]
+    fn handles_empty_string() {
+        let s: &str = "";
+        let pairs_vec = load_into_vec(s);
+        assert_eq!(pairs_vec.len(), 0);
+    }
+
+    #[test]
     fn parses_a_single_pair() {
         let s: &str = "\"key\"=>\"value\"";
         let pairs_vec = load_into_vec(s);
@@ -165,4 +172,17 @@ mod tests {
         assert_eq!(pairs_map.get("key_\\with\\_backslash"), Some(&Some(value)));
     }
 
+    #[test]
+    fn handles_null() {
+        let s: &str = "\"key\"=>NULL";
+        let map = load_into_hashmap(s);
+        assert_eq!(map.get("key"), Some(&None));
+    }
+
+    #[test]
+    fn handles_null_and_others() {
+        let s: &str = "\"key\"=>NULL,\"a_following_key\"=>\"value\"";
+        let map = load_into_hashmap(s);
+        assert_eq!(map.len(), 2);
+    }
 }
