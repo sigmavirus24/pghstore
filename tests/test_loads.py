@@ -3,10 +3,12 @@ import unittest
 import pytest
 
 from pghstore import _native
+from pghstore import _rust_ffi
 try:
-    from pghstore import _speedups
+    from pghstore import _speedups_wrapper as _speedups
 except ImportError:
     _speedups = None
+from pghstore import exceptions
 
 
 class LoadsTests(unittest.TestCase):
@@ -29,10 +31,10 @@ class LoadsTests(unittest.TestCase):
     def test_null(self):
         self.assertEqual(self.pghstore.loads('"key" => null'), {"key": None})
         self.assertEqual(self.pghstore.loads('"key" => NULL'), {"key": None})
+        self.assertEqual(self.pghstore.loads('"key" => NULL, "key2" => "value2"'),
+                         {"key": None, "key2": "value2"})
         self.assertEqual(self.pghstore.loads(
-                '"key" => NULL, "key2": "value2"'), {"key": None, "key2": "value2"})
-        self.assertEqual(self.pghstore.loads(
-                b'"key0" => "value0", "key" => NULL, "key2": "value2"'),
+                b'"key0" => "value0", "key" => NULL, "key2"=> "value2"'),
                         {"key0": "value0", "key": None, "key2": "value2"})
 
     def test_utf8(self):
@@ -129,12 +131,12 @@ class LoadsTests(unittest.TestCase):
 
     def test_decode_failure_key(self):
         s = b'"\x01\xb6\xc3\xa4\xc3\xa5"=>"123"'
-        with self.assertRaises(UnicodeDecodeError):
+        with self.assertRaises(exceptions.ParseError):
             self.pghstore.loads(s)
 
     def test_decode_failure_value(self):
         s = b'"key"=>"\x01\xb6\xc3\xa4\xc3\xa5"'
-        with self.assertRaises(UnicodeDecodeError):
+        with self.assertRaises(exceptions.ParseError):
             self.pghstore.loads(s)
 
     def test_round_trip_double_quotes(self):
@@ -152,6 +154,10 @@ class LoadsTests(unittest.TestCase):
     def test_roundtrip_with_all_the_escapables(self):
         d = {"failing": r'some test \"'}
         self.assertDictEqual(d, self.pghstore.loads(self.pghstore.dumps(d)))
+
+
+class LoadsRustTests(LoadsTests):
+    pghstore = _rust_ffi
 
 
 @pytest.mark.skipif(_speedups is None, reason="Could not compile C extensions for tests")

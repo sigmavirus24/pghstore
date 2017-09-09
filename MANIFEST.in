@@ -1,0 +1,7 @@
+include Cargo.toml
+include *.ini
+include *.rst
+recursive-include src *.py *.rs *.c
+recursive-include benches *.rs
+recursive-include benchmark *.py
+recursive-include tests *.py

@@ -1,9 +1,11 @@
 from __future__ import print_function
+
+import io
 import re
 
 import six
 
-import io
+from pghstore import exceptions
 
 
 def dumps(obj, key_map=None, value_map=None, encoding='utf-8',
@@ -234,7 +236,10 @@ def parse(string, encoding='utf-8'):
 
     """
     if isinstance(string, six.binary_type):
-        string = string.decode(encoding)
+        try:
+            string = string.decode(encoding)
+        except UnicodeDecodeError as err:
+            raise exceptions.ParseError(*err.args)
     offset = 0
     for match in PAIR_RE.finditer(string):
         if offset > match.start() or string[offset:match.start()].strip():

@@ -3,10 +3,13 @@ import unittest
 import pytest
 
 from pghstore import _native
+
 try:
     from pghstore import _speedups
 except ImportError:
     _speedups = None
+
+from pghstore import _rust_ffi
 
 import six
 
@@ -131,6 +134,14 @@ class DumpsTests(unittest.TestCase):
         self.assertDumpsMatchesDict(self.pghstore.dumps(d, return_unicode=True), d)
 
 
+class DumpsRustTests(DumpsTests):
+    """Apply tests to the Rust FFI speedups."""
+
+    pghstore = _rust_ffi
+
+
 @pytest.mark.skipif(_speedups is None, reason="Could not compile C extensions for tests")
 class DumpsSpeedupsTests(DumpsTests):
+    """Apply tests to the CPython API speedups."""
+
     pghstore = _speedups
